@@ -3,12 +3,12 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "import-knowledge-package"
+name = "import-kb"
 version = "0.1.0"
 description = "A package for importing knowledge and embedding text."
 readme = "README.md"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Coderskin", email = "your.email@example.com" }
 ]
 license = { text = "MIT" }
 keywords = ["knowledge", "embedding", "openai", "chromadb"]
