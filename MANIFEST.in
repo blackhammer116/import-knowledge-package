@@ -1,6 +1,0 @@
-include KB/*
-include src/import_knowledge/__init__.py
-include src/import_knowledge/import_knowledge.py
-include README.md
-exclude *.pyc
-exclude __pycache__/*

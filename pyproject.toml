@@ -36,4 +36,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["KB/*.jsonl", "KB/*.metta"]
+import_knowledge = ["KB/*.jsonl", "KB/*.metta"]
+
+[project.scripts]
+import-knowledge = "import_knowledge.import_knowledge:main"

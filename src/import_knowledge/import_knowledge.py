@@ -8,21 +8,22 @@ from dotenv import load_dotenv
 # Load API Key from .env
 load_dotenv()
 
+# Look for the DB path
+_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # --- Configuration ---
 EMBEDDING_MODEL = "text-embedding-3-large"
 COLLECTION_NAME = "memories"
 KNOWLEDGE_FILES = [
-    "KB/oma_distilled_knowledge.jsonl",
-    "KB/max_distilled_knowledge.jsonl"
+    os.path.join(_PACKAGE_DIR, "KB", "oma_distilled_knowledge.jsonl"),
+    os.path.join(_PACKAGE_DIR, "KB", "max_distilled_knowledge.jsonl")
 ]
-CURRICULUM_FILE = "KB/curriculum.metta"
+CURRICULUM_FILE = os.path.join(_PACKAGE_DIR, "KB", "curriculum.metta")
 
-# Look for the DB path
-_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get(
     "CHROMA_DB_PATH",
     "/PeTTa/chroma_db" if os.path.isdir("/PeTTa/chroma_db") else
-    os.path.join(_PROJECT_ROOT, "..", "..", "chroma_db")
+    os.path.join(_PACKAGE_DIR, "..", "..", "chroma_db")
 )
 
 # --- Embedding Function  ---
