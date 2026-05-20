@@ -1,0 +1,27 @@
+{
+    "id": "oma_001",
+    "document": "Oma is a term used to refer to a grandmother in various cultures, often associated with wisdom and nurturing.",
+    "metadata": {
+        "domain": "family",
+        "type": "fact",
+        "tags": ["family", "grandmother", "wisdom"]
+    }
+}
+{
+    "id": "oma_002",
+    "document": "In many cultures, oma is a central figure in family gatherings, often sharing stories and traditions.",
+    "metadata": {
+        "domain": "family",
+        "type": "fact",
+        "tags": ["family", "tradition", "storytelling"]
+    }
+}
+{
+    "id": "oma_003",
+    "document": "The role of an oma can vary significantly between cultures, influencing family dynamics and values.",
+    "metadata": {
+        "domain": "cultural studies",
+        "type": "fact",
+        "tags": ["culture", "family dynamics", "values"]
+    }
+}

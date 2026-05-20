@@ -1,0 +1,27 @@
+{
+    "id": "max_knowledge_001",
+    "document": "Max is known for his exceptional problem-solving skills and creativity. He often approaches challenges with a unique perspective, leading to innovative solutions.",
+    "metadata": {
+        "domain": "personal_development",
+        "type": "fact",
+        "tags": ["creativity", "problem-solving", "innovation"]
+    }
+}
+{
+    "id": "max_knowledge_002",
+    "document": "Max has a strong background in software development, particularly in Python and JavaScript. He has contributed to several open-source projects.",
+    "metadata": {
+        "domain": "technical_skills",
+        "type": "fact",
+        "tags": ["software development", "open-source", "Python", "JavaScript"]
+    }
+}
+{
+    "id": "max_knowledge_003",
+    "document": "Max enjoys collaborating with others and often takes on leadership roles in team projects. His communication skills are highly regarded.",
+    "metadata": {
+        "domain": "teamwork",
+        "type": "fact",
+        "tags": ["leadership", "communication", "collaboration"]
+    }
+}
