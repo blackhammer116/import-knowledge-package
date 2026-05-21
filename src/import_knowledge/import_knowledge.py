@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import chromadb
 import openai
+from tqdm import tqdm
 from dotenv import load_dotenv
 
 # Load API Key from .env
@@ -133,26 +134,27 @@ def main():
     print(f"Generating OpenAI '{EMBEDDING_MODEL}' embeddings for {count} records. Please wait...")
 
     batch_size = 100
-    for i in range(0, count, batch_size):
-        end = min(i + batch_size, count)
-        
-        batch_docs = documents[i:end]
-        
-        # Manually compute the embeddings via OpenAI API to match the agent's expected vector lengths
-        try:
-            batch_embeddings = _embed_batch(batch_docs)
-        except Exception as e:
-            print(f"Fatal error generating embeddings: {e}")
-            return
-        
-        # Use upside instead of add to gracefully handle re-runs
-        collection.upsert(
-            ids=ids[i:end],
-            embeddings=batch_embeddings,
-            documents=batch_docs,
-            metadatas=metadatas[i:end]
-        )
-        print(f"  -> Embedded and upserted batch {i} to {end}")
+    with tqdm(total=count, desc="Upserting Knowledge") as pbar:
+        for i in range(0, count, batch_size):
+            end = min(i + batch_size, count)
+            
+            batch_docs = documents[i:end]
+            batch_ids = ids[i:end]
+            batch_metas = metadatas[i:end]
+            
+            try:
+                batch_embeddings = _embed_batch(batch_docs)
+            except Exception as e:
+                print(f"Fatal error generating embeddings: {e}")
+                return
+            
+            collection.upsert(
+                ids=batch_ids,
+                embeddings=batch_embeddings,
+                documents=batch_docs,
+                metadatas=batch_metas
+            )
+            pbar.update(len(batch_docs))
 
     print("\nKnowledge Transfer Complete!")
     print(f"New Agent Database now has {collection.count()} total memories.")
