@@ -61,8 +61,17 @@ def main():
                     if not line.strip():
                         continue
                     
-                    record = json.loads(line)
-                    record_id = record["id"]
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        print(f"Error: Failed to parse line in {k_file}: {e}")
+                        print(f"Line content: {line.strip()}")
+                        continue
+                    
+                    record_id = record.get("id")
+                    if not record_id:
+                        print(f"Warning: Missing 'id' in record from {k_file}. Skipping.")
+                        continue
                     
                     if record_id in seen_ids:
                         continue
