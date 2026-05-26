@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 import chromadb
+import argparse
 import openai
 from tqdm import tqdm
 from dotenv import load_dotenv
@@ -13,7 +14,9 @@ load_dotenv()
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- Configuration ---
+EMBEDDING_MODE = "openai" # "openai" or "local"
 EMBEDDING_MODEL = "text-embedding-3-large"
+LOCAL_MODEL_NAME = "intfloat/e5-large-v2"
 COLLECTION_NAME = "memories"
 KNOWLEDGE_FILES = [
     os.path.join(_PACKAGE_DIR, "KB", "oma_distilled_knowledge.jsonl"),
@@ -27,14 +30,61 @@ DB_PATH = os.environ.get(
     os.path.join(_PACKAGE_DIR, "..", "..", "chroma_db")
 )
 
-# --- Embedding Function  ---
+_embedding_model = None
+_openai_client = None
+
+def init_embeddings(mode="openai", model_name=None):
+    """
+    Initialize the embedding system. 
+    Can be called programmatically after import to switch modes.
+    """
+    global EMBEDDING_MODE, EMBEDDING_MODEL, LOCAL_MODEL_NAME, _embedding_model, _openai_client
+    EMBEDDING_MODE = mode
+    
+    if mode == "local":
+        if model_name:
+            LOCAL_MODEL_NAME = model_name
+        if _embedding_model is None:
+            from sentence_transformers import SentenceTransformer
+            print(f"Loading local SentenceTransformer model: {LOCAL_MODEL_NAME}...")
+            _embedding_model = SentenceTransformer(LOCAL_MODEL_NAME)
+    else:
+        if model_name:
+            EMBEDDING_MODEL = model_name
+        if _openai_client is None:
+            _openai_client = openai.OpenAI()
+
+def initLocalEmbedding(model_name=None):
+    """Convenience function matching user snippet."""
+    init_embeddings(mode="local", model_name=model_name)
+    return _embedding_model
+
 def _embed_batch(texts):
-    """Embed a list of texts via OpenAI. Returns list of float vectors."""
-    client = openai.OpenAI()
-    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
-    return [item.embedding for item in resp.data]
+    """Embed a list of texts. Uses either OpenAI or local SentenceTransformer."""
+    global EMBEDDING_MODE, EMBEDDING_MODEL, _embedding_model, _openai_client
+    
+    if EMBEDDING_MODE == "local":
+        # Ensure model is loaded (handles case where init_embeddings wasn't called)
+        if _embedding_model is None:
+            init_embeddings(mode="local")
+        return _embedding_model.encode(texts).tolist()
+    else:
+        # OpenAI mode
+        if _openai_client is None:
+            _openai_client = openai.OpenAI()
+        resp = _openai_client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+        return [item.embedding for item in resp.data]
 
 def main():
+    parser = argparse.ArgumentParser(description="Import knowledge into ChromaDB.")
+    parser.add_argument("--local", action="store_true", help="Use local SentenceTransformer embeddings")
+    parser.add_argument("--model", type=str, help="Override default model name (OpenAI or local)")
+    args = parser.parse_args()
+
+    # Initialize based on arguments
+    mode = "local" if args.local else "openai"
+    init_embeddings(mode=mode, model_name=args.model)
+
     has_any_knowledge = any(Path(f).exists() for f in KNOWLEDGE_FILES)
     if not has_any_knowledge and not Path(CURRICULUM_FILE).exists():
         print("Error: Neither knowledge nor curriculum files were found.")
@@ -131,7 +181,8 @@ def main():
         print("No documents to process.")
         return
 
-    print(f"Generating OpenAI '{EMBEDDING_MODEL}' embeddings for {count} records. Please wait...")
+    current_model = LOCAL_MODEL_NAME if EMBEDDING_MODE == "local" else EMBEDDING_MODEL
+    print(f"Generating {EMBEDDING_MODE} '{current_model}' embeddings for {count} records. Please wait...")
 
     batch_size = 100
     with tqdm(total=count, desc="Upserting Knowledge") as pbar:

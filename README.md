@@ -48,6 +48,7 @@ After installation, you can use the package to import knowledge by running the `
 ## Dependencies
 
 - OpenAI API
+- sentence-transformers
 - ChromaDB
 - dotenv
 
