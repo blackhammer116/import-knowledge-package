@@ -1,59 +1,86 @@
-# import-knowledge-package/import-knowledge-package/README.md
+# Import Knowledge (import-kb)
 
-# Import Knowledge Package
+A utility package for importing distilled knowledge and curriculum files into a ChromaDB-based Long-Term Memory (LTM) system.
 
-This project provides a Python package for importing and processing knowledge from specified JSONL and curriculum files. It utilizes OpenAI's embedding model to generate embeddings for the knowledge data, which can then be stored in a Chroma database for later retrieval and use.
+## Purpose
+The `import-kb` package is designed to bridge the gap between static knowledge files (JSONL, MeTTa) and an active agent's memory. It processes structured knowledge, generates vector embeddings, and upserts them into a ChromaDB collection, enabling semantic search and retrieval for AI agents.
 
-## Project Structure
+## Supported Embedding Models
+This package supports two primary embedding modes:
 
-```
-import-knowledge-package
-├── KB
-│   ├── curriculum.metta
-│   ├── max_distilled_knowledge.jsonl
-│   └── oma_distilled_knowledge.jsonl
-├── src
-│   └── import_knowledge
-│       ├── __init__.py
-│       └── import_knowledge.py
-├── pyproject.toml
-├── setup.py
-├── MANIFEST.in
-└── README.md
-```
-
-### KB Directory
-
-- **curriculum.metta**: Contains the curriculum data used for knowledge transfer.
-- **max_distilled_knowledge.jsonl**: Contains distilled knowledge data related to "max".
-- **oma_distilled_knowledge.jsonl**: Contains distilled knowledge data related to "oma".
-
-### Source Directory
-
-- **import_knowledge/__init__.py**: Marks the directory as a Python package.
-- **import_knowledge.py**: Contains the main logic for importing knowledge, including functions for embedding text and processing knowledge files.
+- **OpenAI (Cloud)**:
+  - Default model: `text-embedding-3-large`
+  - High accuracy but requires an internet connection and an API key.
+- **SentenceTransformers (Local)**:
+  - Default model: `intfloat/e5-large-v2`
+  - Runs fully offline on your local machine.
+  - Can be configured to use any model compatible with the `sentence-transformers` library (e.g., `all-MiniLM-L6-v2`).
 
 ## Installation
 
-To install the package, clone the repository and run:
+You can install the package directly from PyPI:
 
 ```bash
-pip install .
+pip install import-kb
 ```
 
-## Usage
+Or install it locally in editable mode:
 
-After installation, you can use the package to import knowledge by running the `import_knowledge.py` script. Ensure that your environment is set up with the necessary API keys and dependencies.
+```bash
+git clone <repository-url>
+cd import-knowledge-package
+pip install -e .
+```
+
+## Setup
+Create a `.env` file in your project root or set the following environment variables:
+
+- `OPENAI_API_KEY`: Required if using OpenAI embeddings.
+- `CHROMA_DB_PATH`: (Optional) Custom path to your Chroma database. Defaults to looking for `/PeTTa/chroma_db` or a local `chroma_db` folder.
+
+## How to Run
+
+### Command Line Interface (CLI)
+After installation, you can run the import via the provided entry point:
+
+```bash
+# Use OpenAI embeddings (default)
+import-knowledge
+
+# Use Local embeddings
+import-knowledge --local
+
+# Use a specific local model
+import-knowledge --local --model "all-MiniLM-L6-v2"
+
+# Override OpenAI model
+import-knowledge --model "text-embedding-3-small"
+```
+
+Alternatively, run it as a module:
+```bash
+python3 -m import_knowledge.import_knowledge --local
+```
+
+### Programmatic Usage
+You can initialize the embedding system and trigger the import programmatically from your Python scripts:
+
+```python
+from import_knowledge import initLocalEmbedding, main
+
+# Initialize for local use
+initLocalEmbedding(model_name="intfloat/e5-large-v2")
+
+# Run the import process
+main()
+```
 
 ## Dependencies
-
-- OpenAI API
-- sentence-transformers
-- ChromaDB
-- dotenv
-
-Make sure to install the required dependencies listed in `setup.py` or `pyproject.toml`.
+- `openai`: For cloud-based embeddings.
+- `sentence-transformers`: For local, offline embeddings.
+- `chromadb`: Vector database for storage.
+- `python-dotenv`: Management of environment variables.
+- `tqdm`: Progress bars for batch processing.
 
 ## License
-
-This project is licensed under the MIT License. See the LICENSE file for more details.
+MIT License. See the LICENSE file for more details.
