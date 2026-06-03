@@ -6,6 +6,7 @@ import argparse
 import openai
 from tqdm import tqdm
 from dotenv import load_dotenv
+import torch
 
 # Load API Key from .env
 load_dotenv()
@@ -29,6 +30,12 @@ DB_PATH = os.environ.get(
     "/PeTTa/chroma_db" if os.path.isdir("/PeTTa/chroma_db") else
     os.path.join(_PACKAGE_DIR, "..", "..", "chroma_db")
 )
+LOCAL_BATCH_SIZE = int(os.environ.get("LOCAL_EMBED_BATCH_SIZE", "128"))
+
+LOCAL_DEVICE = os.environ.get(
+    "LOCAL_EMBED_DEVICE",
+    "cuda" if torch.cuda.is_available() else "cpu"
+)
 
 _embedding_model = None
 _openai_client = None
@@ -46,8 +53,11 @@ def init_embeddings(mode="openai", model_name=None):
             LOCAL_MODEL_NAME = model_name
         if _embedding_model is None:
             from sentence_transformers import SentenceTransformer
-            print(f"Loading local SentenceTransformer model: {LOCAL_MODEL_NAME}...")
-            _embedding_model = SentenceTransformer(LOCAL_MODEL_NAME)
+            print(f"Loading local SentenceTransformer model: {LOCAL_MODEL_NAME} on {LOCAL_DEVICE}...")
+            _embedding_model = SentenceTransformer(
+                LOCAL_MODEL_NAME,
+                device=LOCAL_DEVICE,
+            )
     else:
         if model_name:
             EMBEDDING_MODEL = model_name
@@ -67,7 +77,13 @@ def _embed_batch(texts):
         # Ensure model is loaded (handles case where init_embeddings wasn't called)
         if _embedding_model is None:
             init_embeddings(mode="local")
-        return _embedding_model.encode(texts).tolist()
+        return _embedding_model.encode(
+                    texts,
+                    batch_size=LOCAL_BATCH_SIZE,
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    normalize_embeddings=True,
+                ).tolist()
     else:
         # OpenAI mode
         if _openai_client is None:
@@ -106,7 +122,7 @@ def main():
 
     for k_file in KNOWLEDGE_FILES:
         if Path(k_file).exists():
-            print(f"Loading distilled knowledge from {k_file}...")
+            print(f"Loading knowledge...")
             with open(k_file, "r", encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
@@ -184,7 +200,7 @@ def main():
     current_model = LOCAL_MODEL_NAME if EMBEDDING_MODE == "local" else EMBEDDING_MODEL
     print(f"Generating {EMBEDDING_MODE} '{current_model}' embeddings for {count} records. Please wait...")
 
-    batch_size = 100
+    batch_size = 500
     with tqdm(total=count, desc="Upserting Knowledge") as pbar:
         for i in range(0, count, batch_size):
             end = min(i + batch_size, count)
