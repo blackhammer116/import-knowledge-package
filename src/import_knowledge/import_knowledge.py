@@ -53,11 +53,8 @@ def init_embeddings(mode="openai", model_name=None):
             LOCAL_MODEL_NAME = model_name
         if _embedding_model is None:
             from sentence_transformers import SentenceTransformer
-            print(f"Loading local SentenceTransformer model: {LOCAL_MODEL_NAME} on {LOCAL_DEVICE}...")
-            _embedding_model = SentenceTransformer(
-                LOCAL_MODEL_NAME,
-                device=LOCAL_DEVICE,
-            )
+            print(f"Loading local SentenceTransformer model: {LOCAL_MODEL_NAME}...")
+            _embedding_model = SentenceTransformer(LOCAL_MODEL_NAME)
     else:
         if model_name:
             EMBEDDING_MODEL = model_name
@@ -77,13 +74,7 @@ def _embed_batch(texts):
         # Ensure model is loaded (handles case where init_embeddings wasn't called)
         if _embedding_model is None:
             init_embeddings(mode="local")
-        return _embedding_model.encode(
-                    texts,
-                    batch_size=LOCAL_BATCH_SIZE,
-                    show_progress_bar=False,
-                    convert_to_numpy=True,
-                    normalize_embeddings=True,
-                ).tolist()
+        return _embedding_model.encode(texts).tolist()
     else:
         # OpenAI mode
         if _openai_client is None:
