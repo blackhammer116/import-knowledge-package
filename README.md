@@ -82,5 +82,8 @@ main()
 - `python-dotenv`: Management of environment variables.
 - `tqdm`: Progress bars for batch processing.
 
+---
+
 ## License
-MIT License. See the LICENSE file for more details.
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) file for details.
