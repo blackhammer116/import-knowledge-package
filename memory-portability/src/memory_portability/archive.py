@@ -1,37 +1,8 @@
-"""
-memory_portability.archive
-==========================
-
-Low-level tar.gz pack and unpack operations.
-
-Responsibilities
-----------------
-- Packing a staging directory into a ``.tar.gz`` using an explicit allowlist.
-- Safely extracting a ``.tar.gz`` into a destination directory, rejecting any
-  member that is not on the allowlist, contains path traversal, is not a
-  regular file, or is a duplicate.
-
-This module knows nothing about manifests, checksums, or record validation.
-Those concerns belong to ``validator.py``.
-
-Constants
----------
-ARCHIVE_FORMAT_VERSION  -- integer format version written into every manifest.
-ALLOWLIST               -- frozenset of the only member paths permitted in an archive.
-COMPONENT_FILES         -- mapping from component name to its required member paths.
-MAX_COMPRESSED_BYTES    -- maximum permitted compressed archive size (500 MB).
-MAX_EXTRACTED_BYTES     -- maximum permitted total extracted size (2 GB).
-"""
-
 import shutil
 import tarfile
 from pathlib import Path
 
 from memory_portability.errors import ArchiveValidationError
-
-# ---------------------------------------------------------------------------
-# Archive format constants
-# ---------------------------------------------------------------------------
 
 ARCHIVE_FORMAT_VERSION: int = 1
 
@@ -120,7 +91,6 @@ def unpack(archive: Path, dest: Path) -> None:
     total_extracted: int      = 0
 
     with tarfile.open(archive, "r:gz") as tar:
-        # --- validation pass ---
         for member in tar.getmembers():
             name = member.name
 
@@ -136,7 +106,6 @@ def unpack(archive: Path, dest: Path) -> None:
                 raise ArchiveValidationError(
                     f"Non-regular archive member: {name!r}"
                 )
-            # Reject path traversal
             member_path = Path(name)
             if member_path.is_absolute() or ".." in member_path.parts:
                 raise ArchiveValidationError(
@@ -149,7 +118,6 @@ def unpack(archive: Path, dest: Path) -> None:
                 )
             seen.add(name)
 
-        # --- extraction pass (only after all members validated) ---
         _safe_extract(tar, base)
 
 

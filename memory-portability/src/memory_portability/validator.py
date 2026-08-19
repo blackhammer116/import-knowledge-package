@@ -1,23 +1,3 @@
-"""
-memory_portability.validator
-============================
-
-Manifest schema validation, checksum verification, and record-level
-validation for memory archives.
-
-Responsibilities
-----------------
-- Validating the structure and field types of ``manifest.json``.
-- Verifying SHA-256 checksums of extracted files against the manifest.
-- Validating ``collections.json`` structure and embedding-info consistency.
-- Validating individual JSONL records (types, required fields, embedding
-  dimension against manifest).
-- Confirming that record counts and history byte sizes match the manifest.
-
-This module operates on already-extracted files. It never opens a tar archive;
-that is the responsibility of ``archive.py``.
-"""
-
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -27,37 +7,11 @@ from memory_portability.archive import ARCHIVE_FORMAT_VERSION, COMPONENT_FILES
 from memory_portability.errors import ArchiveValidationError
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 def validate_manifest(raw: object) -> dict:
-    """Parse and validate a raw manifest object loaded from ``manifest.json``.
-
-    Checks all required fields, their types, value constraints, and internal
-    consistency (e.g. checksums keys match components, record_count is zero
-    when ``ltm`` is not in components).
-
-    Parameters
-    ----------
-    raw:
-        Python object produced by ``json.loads`` on ``manifest.json`` content.
-
-    Returns
-    -------
-    dict
-        The validated manifest dict, unchanged.
-
-    Raises
-    ------
-    ArchiveValidationError
-        If any field is missing, has the wrong type, or is internally
-        inconsistent.
-    """
+    """Validate a decoded manifest."""
     if not isinstance(raw, dict):
         raise ArchiveValidationError("Archive manifest must be a JSON object")
 
-    # format_version — must be an int (not bool) equal to the supported version
     if type(raw.get("format_version")) is not int:
         raise ArchiveValidationError("Archive manifest has invalid format_version")
     if raw["format_version"] != ARCHIVE_FORMAT_VERSION:
@@ -66,12 +20,10 @@ def validate_manifest(raw: object) -> dict:
             f"Expected {ARCHIVE_FORMAT_VERSION}."
         )
 
-    # String fields that must be non-empty
     for field in ("omegaclaw_version", "chromadb_version", "created_at"):
         if not isinstance(raw.get(field), str) or not raw[field]:
             raise ArchiveValidationError(f"Archive manifest has invalid {field!r}")
 
-    # created_at must be a valid UTC ISO-8601 timestamp
     try:
         created_at = datetime.fromisoformat(raw["created_at"].replace("Z", "+00:00"))
     except ValueError as exc:
@@ -81,7 +33,6 @@ def validate_manifest(raw: object) -> dict:
     if created_at.tzinfo is None or created_at.utcoffset() != timezone.utc.utcoffset(created_at):
         raise ArchiveValidationError("Archive manifest created_at must be UTC")
 
-    # components — list of known component names, no duplicates
     components = raw.get("components")
     if (
         not isinstance(components, list)
@@ -90,7 +41,6 @@ def validate_manifest(raw: object) -> dict:
     ):
         raise ArchiveValidationError("Archive manifest has invalid components")
 
-    # record_count — non-negative int (not bool)
     if (
         not isinstance(raw.get("record_count"), int)
         or isinstance(raw["record_count"], bool)
@@ -98,7 +48,6 @@ def validate_manifest(raw: object) -> dict:
     ):
         raise ArchiveValidationError("Archive manifest has invalid record_count")
 
-    # history_bytes — non-negative int (not bool)
     if (
         not isinstance(raw.get("history_bytes"), int)
         or isinstance(raw["history_bytes"], bool)
@@ -106,7 +55,6 @@ def validate_manifest(raw: object) -> dict:
     ):
         raise ArchiveValidationError("Archive manifest has invalid history_bytes")
 
-    # Internal consistency: records require ltm; history_bytes require history
     if "ltm" not in components and raw["record_count"]:
         raise ArchiveValidationError(
             "Archive manifest has record_count > 0 without the ltm component"
@@ -116,7 +64,6 @@ def validate_manifest(raw: object) -> dict:
             "Archive manifest has history_bytes > 0 without the history component"
         )
 
-    # checksums — dict of str→64-char lowercase hex strings
     checksums = raw.get("checksums")
     if not isinstance(checksums, dict):
         raise ArchiveValidationError("Archive manifest checksums must be a JSON object")
@@ -130,7 +77,6 @@ def validate_manifest(raw: object) -> dict:
                 f"Archive manifest checksum for {name!r} is not a valid SHA-256 hex digest"
             )
 
-    # checksums keys must match exactly the files belonging to declared components
     expected_files: set[str] = set()
     for component in components:
         expected_files |= COMPONENT_FILES[component]
@@ -139,7 +85,6 @@ def validate_manifest(raw: object) -> dict:
             "Archive manifest checksums keys do not match its components"
         )
 
-    # embedding_info — required when ltm present, must be empty dict otherwise
     if "ltm" in components:
         _validate_embedding_info(raw)
     elif raw.get("embedding_info") not in ({}, None):
@@ -151,23 +96,7 @@ def validate_manifest(raw: object) -> dict:
 
 
 def validate_checksums(staging: Path, manifest: dict) -> None:
-    """Verify SHA-256 checksums of extracted files against ``manifest``.
-
-    Computes the SHA-256 of every file listed in ``manifest["checksums"]``
-    and raises if any computed digest does not match.
-
-    Parameters
-    ----------
-    staging:
-        Directory into which the archive was extracted.
-    manifest:
-        Validated manifest dict (output of ``validate_manifest``).
-
-    Raises
-    ------
-    ArchiveValidationError
-        If any file's checksum does not match or a listed file is absent.
-    """
+    """Verify checksummed archive members."""
     for member_name, expected in manifest["checksums"].items():
         path = staging / member_name
         if not path.exists():
@@ -183,24 +112,7 @@ def validate_checksums(staging: Path, manifest: dict) -> None:
 
 
 def validate_collections(staging: Path, manifest: dict) -> None:
-    """Validate ``vector/collections.json`` against the manifest.
-
-    Checks that the collection name is ``"memories"`` and that its
-    ``embedding_info`` matches ``manifest["embedding_info"]``.
-
-    Parameters
-    ----------
-    staging:
-        Directory into which the archive was extracted.
-    manifest:
-        Validated manifest dict.
-
-    Raises
-    ------
-    ArchiveValidationError
-        If ``collections.json`` is missing, malformed, or inconsistent with
-        the manifest.
-    """
+    """Validate collections metadata against the manifest."""
     path = staging / "vector" / "collections.json"
     if not path.exists():
         raise ArchiveValidationError("Archive is missing vector/collections.json")
@@ -238,35 +150,7 @@ def validate_history(staging: Path, manifest: dict) -> None:
 
 
 def validate_records(staging: Path, manifest: dict) -> bool:
-    """Validate every record in ``vector/records.jsonl`` against the manifest.
-
-    Checks that:
-    - Each line is valid JSON representing an object.
-    - Each record has a non-empty string ``id``, a string ``document``, a
-      list-of-numbers ``embedding``, and a dict ``metadata``.
-    - Each embedding has exactly
-      ``manifest["embedding_info"]["vector_dimension"]`` dimensions.
-    - The total record count matches ``manifest["record_count"]``.
-
-    Parameters
-    ----------
-    staging:
-        Directory into which the archive was extracted.
-    manifest:
-        Validated manifest dict.
-
-    Returns
-    -------
-    bool
-        ``True`` when one or more records have no embedding and therefore
-        require staged re-embedding before import.
-
-    Raises
-    ------
-    ArchiveValidationError
-        If any record is malformed, has the wrong embedding dimension, or the
-        total count does not match the manifest.
-    """
+    """Validate staged records and report whether any embeddings are absent."""
     path = staging / "vector" / "records.jsonl"
     if not path.exists():
         raise ArchiveValidationError("Archive is missing vector/records.jsonl")
@@ -297,10 +181,6 @@ def validate_records(staging: Path, manifest: dict) -> bool:
         )
     return missing_embeddings
 
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
 
 def _validate_embedding_info(manifest: dict) -> None:
     """Validate ``embedding_info`` inside a manifest dict."""

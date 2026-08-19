@@ -1,33 +1,3 @@
-"""
-memory_portability.importer
-============================
-
-Import logic: archive validation, overwrite and append transactions,
-rollback, crash recovery, and import receipts.
-
-Responsibilities
-----------------
-- Validating the archive (via ``archive`` and ``validator`` modules) before
-  touching live memory.
-- Overwrite mode: snapshot live components to a rollback directory, write a
-  transaction marker, replace live components, run smoke tests, write receipt,
-  then clean up rollback and marker. Restore from rollback on any failure.
-- Append mode: generate ``import-<uuid>-<original-id>`` record IDs, write a
-  transaction marker containing those IDs, upsert records, run smoke tests,
-  write receipt, then clean up the marker. Delete the partial IDs on any
-  failure.
-- Writing import receipts to prevent the same archive being imported twice
-  on container restart.
-- Crash recovery (``recover``): on startup, detect an unfinished transaction
-  marker and either complete it (receipt found) or restore/clean up the
-  partial state. Preserve the marker and raise ``RecoveryError`` if recovery
-  cannot proceed safely.
-
-Transaction marker and receipt paths are children of ``backend.state_dir``.
-Staging is also a child of ``backend.state_dir``. Nothing is written to
-``/tmp`` or outside ``transfer_dir`` / ``backend.state_dir``.
-"""
-
 import hashlib
 import json
 import os
@@ -51,20 +21,12 @@ from memory_portability.validator import (
     validate_records,
 )
 
-# ---------------------------------------------------------------------------
-# Package-owned state-path names (all hidden inside backend.state_dir)
-# ---------------------------------------------------------------------------
-
 TX_MARKER_NAME    = ".import_in_progress"
 RECEIPT_DIR_NAME  = ".memory_import_receipts"
 ROLLBACK_DIR_NAME = ".import_rollback"
 STAGING_DIR_NAME  = ".import_staging"
 _ROLLBACK_STATE   = "state.json"
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def import_archive(
     backend: MemoryBackend,
@@ -74,48 +36,13 @@ def import_archive(
     include_history: bool = True,
     include_vectors: bool = True,
 ) -> None:
-    """Validate and restore a memory archive.
-
-    Must be called before the agent loop starts. Validates the archive
-    fully before modifying any live component.
-
-    Parameters
-    ----------
-    backend:
-        Agent storage adapter.
-    transfer_dir:
-        Directory from which the archive file is read. The archive must be a
-        plain filename (no path separators) within this directory.
-    filename:
-        Archive filename (basename only, e.g.
-        ``"omegaclaw-memory-20260818T093000Z.tar.gz"``).
-    mode:
-        ``"overwrite"`` (default) or ``"append"``.
-    include_history:
-        When ``True``, restore the history component if present in the archive.
-    include_vectors:
-        When ``True``, restore the vector component if present in the archive.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the archive file does not exist in ``transfer_dir``.
-    ArchiveValidationError
-        If the archive fails any validation check.
-    ImportError
-        If the import fails after validation (backend write error, smoke test
-        failure, etc.).
-    ValueError
-        If ``mode`` is not ``"overwrite"`` or ``"append"``, or if both
-        ``include_history`` and ``include_vectors`` are ``False``.
-    """
+    """Validate and restore an archive before the agent loop starts."""
     if mode not in ("overwrite", "append"):
         raise ValueError(f"Invalid mode: {mode!r}. Use 'overwrite' or 'append'.")
     if not include_history and not include_vectors:
         raise ValueError(
             "Both include_history and include_vectors are False — nothing to import."
         )
-    # Reject path separators in filename to prevent directory traversal.
     if "/" in filename or "\\" in filename or ".." in filename:
         raise ValueError(f"filename must be a plain basename, not a path: {filename!r}")
 
@@ -130,14 +57,12 @@ def import_archive(
     receipt = _receipt_path(base, digest, mode, include_history, include_vectors)
 
     if receipt.exists():
-        # Already imported — idempotent, skip silently.
         return
 
     staging = base / STAGING_DIR_NAME
     shutil.rmtree(staging, ignore_errors=True)
 
     try:
-        # --- Full validation before any live mutation ---
         unpack(archive_path, staging)
         raw = json.loads((staging / "manifest.json").read_text(encoding="utf-8"))
         manifest = validate_manifest(raw)
@@ -164,7 +89,6 @@ def import_archive(
         )
 
         if do_vectors:
-            # Re-embed in staging before touching live memory.
             if needs_reembedding(manifest, backend, missing_embeddings):
                 reembed_staged_records(staging, backend)
 
@@ -182,47 +106,18 @@ def import_archive(
 
 
 def recover(backend: MemoryBackend) -> None:
-    """Recover from an interrupted import transaction, if one exists.
-
-    Reads the transaction marker at ``backend.state_dir / TX_MARKER_NAME``.
-    If no marker exists, returns immediately (nothing to recover).
-
-    Recovery logic:
-
-    - If the marker's receipt filename exists in the receipts directory,
-      the import completed successfully; remove the marker and rollback dir.
-    - If the marker describes an append import with recorded IDs, delete
-      those IDs from the backend and remove the marker.
-    - If the marker describes an overwrite import with a rollback directory,
-      restore from the rollback dir, remove the marker, and clean up.
-    - If the marker is unreadable, missing required fields, or rollback
-      state cannot be restored, preserve the marker and raise
-      ``RecoveryError`` so the operator can intervene.
-
-    Parameters
-    ----------
-    backend:
-        Agent storage adapter.
-
-    Raises
-    ------
-    RecoveryError
-        If recovery cannot complete safely. The transaction marker is
-        preserved for operator inspection.
-    """
+    """Restore or clean up an interrupted import transaction."""
     base   = backend.state_dir
     marker = base / TX_MARKER_NAME
 
     if not marker.exists():
         return
 
-    # Case 1: receipt exists → import completed; just clean up the marker.
     if _marker_has_receipt(marker, base):
         marker.unlink(missing_ok=True)
         shutil.rmtree(base / ROLLBACK_DIR_NAME, ignore_errors=True)
         return
 
-    # Parse the marker to determine which recovery path to take.
     try:
         transaction = json.loads(marker.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
@@ -237,7 +132,6 @@ def recover(backend: MemoryBackend) -> None:
             "Operator intervention required."
         )
 
-    # Case 2: append import → restore history and delete partial record IDs.
     append_ids = transaction.get("append_ids")
     if append_ids is not None:
         if not isinstance(append_ids, list):
@@ -265,7 +159,6 @@ def recover(backend: MemoryBackend) -> None:
         shutil.rmtree(base / ROLLBACK_DIR_NAME, ignore_errors=True)
         return
 
-    # Case 3: overwrite import → restore from rollback directory.
     rollback = base / ROLLBACK_DIR_NAME
     if not rollback.exists():
         raise RecoveryError(
@@ -285,10 +178,6 @@ def recover(backend: MemoryBackend) -> None:
     shutil.rmtree(rollback, ignore_errors=True)
 
 
-# ---------------------------------------------------------------------------
-# Overwrite transaction
-# ---------------------------------------------------------------------------
-
 def _import_overwrite(
     backend: MemoryBackend,
     staging: Path,
@@ -306,7 +195,6 @@ def _import_overwrite(
     shutil.rmtree(rollback, ignore_errors=True)
     rollback.mkdir(parents=True)
 
-    # Snapshot current live state into rollback before any modification.
     rollback_state: dict = {}
     if do_history:
         current_history = backend.read_history()
@@ -315,7 +203,6 @@ def _import_overwrite(
             (rollback / "history.metta").write_text(current_history, encoding="utf-8")
 
     if do_vectors:
-        # Snapshot current user records as JSONL into rollback.
         rollback_records_path = rollback / "records.jsonl"
         with rollback_records_path.open("w", encoding="utf-8") as f:
             for batch in backend.iter_records(batch_size=500):
@@ -325,7 +212,7 @@ def _import_overwrite(
 
     _write_json_atomic(rollback / _ROLLBACK_STATE, rollback_state)
 
-    # Write transaction marker — crash before receipt means restore rollback.
+    # A missing receipt means recovery must restore this snapshot.
     _write_json_atomic(marker, {"receipt": receipt.name})
 
     try:
@@ -339,11 +226,9 @@ def _import_overwrite(
         backend.smoke_test(do_history, do_vectors)
 
     except Exception as exc:
-        # Restore rollback on any failure.
         try:
             _restore_rollback(backend, rollback)
         except Exception as rb_exc:
-            # Rollback itself failed — preserve marker and both exceptions.
             raise MpImportError(
                 f"Import failed and rollback also failed: {rb_exc}. "
                 "Operator intervention required."
@@ -352,15 +237,10 @@ def _import_overwrite(
         shutil.rmtree(rollback, ignore_errors=True)
         raise MpImportError(f"Overwrite import failed (rolled back): {exc}") from exc
 
-    # Success — write receipt then clean up.
     _write_receipt(receipt, digest, "overwrite", do_history, do_vectors)
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
 
-
-# ---------------------------------------------------------------------------
-# Append transaction
-# ---------------------------------------------------------------------------
 
 def _import_append(
     backend: MemoryBackend,
@@ -377,7 +257,6 @@ def _import_append(
 
     rollback = base / ROLLBACK_DIR_NAME
 
-    # Generate stable IDs for this import batch.
     import_uuid     = uuid.uuid4().hex
     appended_ids: list[str] = []
 
@@ -425,7 +304,6 @@ def _import_append(
         backend.smoke_test(do_history, do_vectors)
 
     except Exception as exc:
-        # Roll back by deleting the IDs we inserted.
         try:
             if do_history:
                 _restore_append_history(backend, rollback)
@@ -440,15 +318,10 @@ def _import_append(
         shutil.rmtree(rollback, ignore_errors=True)
         raise MpImportError(f"Append import failed (rolled back): {exc}") from exc
 
-    # Success — write receipt then clean up marker.
     _write_receipt(receipt, digest, "append", do_history, do_vectors)
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
 
-
-# ---------------------------------------------------------------------------
-# Rollback restoration
-# ---------------------------------------------------------------------------
 
 def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
     """Restore live memory from a rollback snapshot."""
@@ -528,10 +401,6 @@ def _iter_jsonl(path: Path, batch_size: int = 500):
         yield batch
 
 
-# ---------------------------------------------------------------------------
-# Receipt helpers
-# ---------------------------------------------------------------------------
-
 def _receipt_path(
     base: Path, digest: str, mode: str,
     include_history: bool, include_vectors: bool
@@ -576,10 +445,6 @@ def _marker_has_receipt(marker: Path, base: Path) -> bool:
         and (base / RECEIPT_DIR_NAME / receipt_name).is_file()
     )
 
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
 
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()

@@ -1,28 +1,3 @@
-"""
-memory_portability.reembedder
-=============================
-
-Staged re-embedding of archive records when the archive's embedding profile
-differs from the agent's active profile.
-
-Responsibilities
-----------------
-- Comparing archive and runtime embedding profiles to decide whether
-  re-embedding is needed.
-- Reading staged ``records.jsonl`` in batches, calling the backend's
-  ``embed()`` method for document text, verifying returned batch length
-  and vector dimension, and writing updated records back to the staged file.
-- Ensuring that live memory is never touched during re-embedding: all
-  mutations happen on the staged file only.
-
-After this module completes, ``staging/vector/records.jsonl`` contains
-embeddings compatible with the agent's active profile and the importer
-can proceed directly to ``replace_records``.
-
-The backend supplies the embedding function only. It never mutates archive
-or staged records.
-"""
-
 import json
 import os
 from pathlib import Path
@@ -34,25 +9,7 @@ from memory_portability.errors import ImportError as MpImportError
 def needs_reembedding(
     manifest: dict, backend: MemoryBackend, embeddings_missing: bool = False
 ) -> bool:
-    """Return whether staged records must be re-embedded before import.
-
-    Compares ``manifest["embedding_info"]`` against
-    ``backend.get_embedding_profile()``. Re-embedding is required when the
-    provider, model, or vector dimension differs, or when the manifest
-    contains records without embeddings.
-
-    Parameters
-    ----------
-    manifest:
-        Validated manifest dict (output of ``validator.validate_manifest``).
-    backend:
-        Agent storage adapter providing the active embedding profile.
-
-    Returns
-    -------
-    bool
-        ``True`` when re-embedding is required before import.
-    """
+    """Return whether staged records require re-embedding."""
     archive_info = manifest.get("embedding_info", {})
     active_info  = backend.get_embedding_profile()
 
@@ -75,38 +32,7 @@ def reembed_staged_records(
     backend: MemoryBackend,
     batch_size: int = 64,
 ) -> None:
-    """Re-embed all records in ``staging/vector/records.jsonl`` in-place.
-
-    Reads the staged JSONL file in batches of ``batch_size`` documents,
-    calls ``backend.embed()`` for each batch, verifies that the returned
-    list length and vector dimension match expectations, and writes the
-    updated records back to the staged file.
-
-    The staged file is rewritten atomically: a temporary sibling file is
-    written and then renamed over the original so that a crash mid-rewrite
-    leaves either the original or the fully re-embedded file, never a
-    partial file.
-
-    After this function returns, every record in the staged file has an
-    embedding compatible with ``backend.get_embedding_profile()``.
-
-    Parameters
-    ----------
-    staging:
-        Directory into which the archive was extracted. Must contain
-        ``vector/records.jsonl``.
-    backend:
-        Agent storage adapter. Its ``embed()`` and ``get_embedding_profile()``
-        methods are called; no other backend methods are used here.
-    batch_size:
-        Number of documents to embed per ``backend.embed()`` call.
-
-    Raises
-    ------
-    ImportError
-        If ``backend.embed()`` returns a batch of the wrong length or
-        wrong vector dimension.
-    """
+    """Re-embed staged records atomically before live records are replaced."""
     records_path = staging / "vector" / "records.jsonl"
     tmp_path     = records_path.with_suffix(".jsonl.tmp")
 
@@ -157,8 +83,6 @@ def reembed_staged_records(
                 try:
                     record = json.loads(line)
                 except json.JSONDecodeError:
-                    # Pass non-JSON lines through unchanged (shouldn't exist
-                    # in validated staging, but be defensive).
                     dst.write(line)
                     continue
 
@@ -168,7 +92,6 @@ def reembed_staged_records(
 
             _flush_batch()
 
-        # Atomic rename: replaces records.jsonl only after full rewrite succeeds.
         os.replace(tmp_path, records_path)
 
     except Exception:

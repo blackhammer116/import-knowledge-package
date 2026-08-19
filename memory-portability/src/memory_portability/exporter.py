@@ -1,26 +1,3 @@
-"""
-memory_portability.exporter
-============================
-
-Export logic: snapshot, manifest building, atomic publication, and async
-job management.
-
-Responsibilities
-----------------
-- Acquiring the backend write lock and snapshotting history and vector
-  records into a staging directory.
-- Building ``manifest.json`` with checksums, embedding info, record counts,
-  history bytes, and agent/store metadata from the backend.
-- Packing the staging directory into a validated ``.tar.gz``.
-- Publishing the archive atomically to the transfer directory (write to a
-  hidden temp file, then rename).
-- Running export jobs asynchronously in daemon threads and tracking their
-  status by job ID so callers can poll or register a completion callback.
-
-The exporter never modifies live memory. It only reads from the backend
-(via ``iter_records`` and ``read_history``) while holding ``write_lock``.
-"""
-
 import hashlib
 import json
 import os
@@ -48,57 +25,18 @@ from memory_portability.validator import (
     validate_records,
 )
 
-# ---------------------------------------------------------------------------
-# Module-level job registry (in-process, daemon-thread-backed)
-# ---------------------------------------------------------------------------
-
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
 _VALID_COMPONENTS = frozenset({"history", "ltm", "both"})
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 def export(
     backend: MemoryBackend,
     transfer_dir: Path,
     component: str,
 ) -> dict:
-    """Export selected memory components and publish a validated archive.
-
-    Runs synchronously. Acquires the backend write lock, snapshots the
-    selected components, builds and validates the archive, and publishes it
-    atomically to ``transfer_dir``.
-
-    Parameters
-    ----------
-    backend:
-        Agent storage adapter.
-    transfer_dir:
-        Directory where the finished archive is published. Must be writable.
-    component:
-        One of ``"history"``, ``"ltm"``, or ``"both"``.
-
-    Returns
-    -------
-    dict
-        Result dict containing:
-            ``filename``     -- archive filename (basename only)
-            ``size``         -- compressed size in bytes
-            ``checksum``     -- SHA-256 hex digest of the published archive
-            ``record_count`` -- number of vector records exported
-            ``components``   -- list of component names included
-
-    Raises
-    ------
-    ExportError
-        If any step of the export fails.
-    ValueError
-        If ``component`` is not one of the allowed values.
-    """
+    """Publish a validated archive for the selected components."""
     if component not in _VALID_COMPONENTS:
         raise ValueError(
             f"Invalid component: {component!r}. Use 'history', 'ltm', or 'both'."
@@ -124,8 +62,6 @@ def export(
         embedding_info: dict = {}
         components:     list[str] = []
 
-        # Hold the write lock only during the snapshot phase so live writes
-        # are blocked for the minimum possible time.
         with backend.write_lock:
             if include_history:
                 _snapshot_history(backend, staging)
@@ -168,35 +104,7 @@ def start_export_job(
     component: str,
     on_complete: Callable[[str, dict], None] | None = None,
 ) -> str:
-    """Start an asynchronous export and return its job ID immediately.
-
-    The export runs in a daemon thread. When complete, ``on_complete`` is
-    called with ``(job_id, status_dict)`` if provided. The status dict has
-    the same shape as the return value of ``export()``, plus a ``"status"``
-    key (``"done"`` or ``"failed"``) and an ``"error"`` key on failure.
-
-    Parameters
-    ----------
-    backend:
-        Agent storage adapter.
-    transfer_dir:
-        Directory where the finished archive is published.
-    component:
-        One of ``"history"``, ``"ltm"``, or ``"both"``.
-    on_complete:
-        Optional callback called with ``(job_id, status_dict)`` when the job
-        finishes or fails. Called from the background thread; must not block.
-
-    Returns
-    -------
-    str
-        Opaque job ID for use with ``get_export_status()``.
-
-    Raises
-    ------
-    ValueError
-        If ``component`` is not one of the allowed values.
-    """
+    """Start a background export and return its job ID."""
     if component not in _VALID_COMPONENTS:
         raise ValueError(
             f"Invalid component: {component!r}. Use 'history', 'ltm', or 'both'."
@@ -216,29 +124,10 @@ def start_export_job(
 
 
 def get_export_status(job_id: str) -> dict:
-    """Return the current status of an export job.
-
-    Parameters
-    ----------
-    job_id:
-        Job ID returned by ``start_export_job()``.
-
-    Returns
-    -------
-    dict
-        Status dict with at least a ``"status"`` key:
-            ``"running"``  -- job is in progress
-            ``"done"``     -- job completed successfully (full result included)
-            ``"failed"``   -- job failed (``"error"`` key contains message)
-            ``"unknown"``  -- job ID not recognised
-    """
+    """Return the current status for an export job."""
     with _jobs_lock:
         return _jobs.get(job_id, {"status": "unknown"}).copy()
 
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
 
 def _run_export_job(
     job_id: str,

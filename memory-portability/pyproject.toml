@@ -25,7 +25,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/blackhammer116/import-knowledge-package"
+Repository = "https://github.com/Bereket-Eshete/memory-portability-package"
 
 [project.optional-dependencies]
 dev = [
