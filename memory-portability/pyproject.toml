@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memory-portability"
-version = "0.1.0"
-description = "Agent-agnostic memory backup and restore package."
+version = "0.2.0"
+description = "OmegaClaw memory backup and restore package."
 readme = "README.md"
 authors = [
     { name = "Bereket", email = "bereket.eshete@singularitynet.io" }
@@ -19,10 +19,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 
-# The archive/transaction core is stdlib-only.
-# ChromaDB, torch, and embedding libraries are agent-adapter dependencies,
-# not this package's dependencies.
-dependencies = []
+dependencies = ["chromadb>=0.6"]
 
 [project.urls]
 Repository = "https://github.com/Bereket-Eshete/memory-portability-package"

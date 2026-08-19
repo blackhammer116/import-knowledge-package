@@ -14,7 +14,7 @@ from memory_portability.archive import (
     pack,
     unpack,
 )
-from memory_portability.backend import MemoryBackend
+from memory_portability.backend import OmegaClawMemory
 from memory_portability.errors import ExportError
 from memory_portability.validator import (
     validate_checksums,
@@ -30,7 +30,7 @@ _jobs_lock = threading.Lock()
 _VALID_COMPONENTS = frozenset({"history", "ltm", "both"})
 
 def export(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     transfer_dir: Path,
     component: str,
 ) -> dict:
@@ -96,7 +96,7 @@ def export(
     }
 
 def start_export_job(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     transfer_dir: Path,
     component: str,
     on_complete: Callable[[str, dict], None] | None = None,
@@ -126,7 +126,7 @@ def get_export_status(job_id: str) -> dict:
 
 def _run_export_job(
     job_id: str,
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     transfer_dir: Path,
     component: str,
     on_complete: Callable[[str, dict], None] | None,
@@ -147,7 +147,7 @@ def _run_export_job(
         except Exception:
             pass  # callback errors must never crash the background thread
 
-def _snapshot_history(backend: MemoryBackend, staging: Path) -> int:
+def _snapshot_history(backend: OmegaClawMemory, staging: Path) -> int:
     """Write history content into staging. Returns byte size written."""
     content = backend.read_history()
     dst = staging / "history" / "history.metta"
@@ -159,7 +159,7 @@ def _snapshot_history(backend: MemoryBackend, staging: Path) -> int:
     return 0
 
 def _snapshot_vectors(
-    backend: MemoryBackend, staging: Path
+    backend: OmegaClawMemory, staging: Path
 ) -> tuple[int, dict]:
     """Write vector records and collections.json into staging."""
     vector_dir   = staging / "vector"
@@ -204,7 +204,7 @@ def _snapshot_vectors(
     return record_count, embedding_info
 
 def _build_manifest(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     staging: Path,
     components: list[str],
     record_count: int,

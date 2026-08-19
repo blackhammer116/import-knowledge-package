@@ -2,7 +2,6 @@ import threading
 from collections.abc import Iterator
 from pathlib import Path
 
-from memory_portability.backend import MemoryBackend
 def record(record_id: str, document: str = "memory") -> dict:
     return {
         "id": record_id,
@@ -10,7 +9,7 @@ def record(record_id: str, document: str = "memory") -> dict:
         "embedding": [0.1, 0.2, 0.3, 0.4],
         "metadata": {"record_kind": "user_memory"},
     }
-class FakeBackend(MemoryBackend):
+class FakeBackend:
     def __init__(self, tmp_path: Path, history: str | None = "history\n") -> None:
         self._lock = threading.Lock()
         self._state_dir = tmp_path / "memory"

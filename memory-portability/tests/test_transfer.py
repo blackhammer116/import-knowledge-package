@@ -4,15 +4,15 @@ import time
 import pytest
 
 from memory_portability.errors import ImportError as MemoryImportError
+from memory_portability.exporter import export, get_export_status, start_export_job
 from memory_portability.importer import import_archive
-from memory_portability.transfer import MemoryTransfer
 
 from conftest import FakeBackend, record, user_records
 def export_archive(tmp_path, component="both"):
     source = FakeBackend(tmp_path / "source")
     source.upsert_records([record("source-1", "portable memory")])
     transfer_dir = tmp_path / "transfer"
-    result = MemoryTransfer(source, transfer_dir).export(component)
+    result = export(source, transfer_dir, component)
     return source, transfer_dir, result
 def test_round_trip_exports_expected_archive_and_restores_both_components(tmp_path):
     source, transfer_dir, result = export_archive(tmp_path)
@@ -24,7 +24,7 @@ def test_round_trip_exports_expected_archive_and_restores_both_components(tmp_pa
             "vector/records.jsonl",
         }
     target = FakeBackend(tmp_path / "target", history="old\n")
-    MemoryTransfer(target, transfer_dir).import_archive(result["filename"])
+    import_archive(target, transfer_dir, result["filename"])
     assert target.read_history() == source.read_history()
     assert user_records(target) == user_records(source)
 def test_history_import_leaves_vectors_untouched(tmp_path):
@@ -36,10 +36,9 @@ def test_history_import_leaves_vectors_untouched(tmp_path):
 def test_receipt_prevents_repeat_import(tmp_path):
     _, transfer_dir, result = export_archive(tmp_path)
     target = FakeBackend(tmp_path / "target")
-    transfer = MemoryTransfer(target, transfer_dir)
-    transfer.import_archive(result["filename"])
+    import_archive(target, transfer_dir, result["filename"])
     target.write_history("changed after import\n")
-    transfer.import_archive(result["filename"])
+    import_archive(target, transfer_dir, result["filename"])
     assert target.read_history() == "changed after import\n"
 def test_overwrite_failure_restores_absent_history_and_records(tmp_path):
     _, transfer_dir, result = export_archive(tmp_path)
@@ -73,10 +72,10 @@ def test_mismatched_embedding_profile_reembeds_before_import(tmp_path):
     assert target.embed_calls == [["portable memory"]]
     assert user_records(target)[0]["embedding"] == [0.5, 0.5]
 def test_async_export_reaches_done_status(tmp_path):
-    transfer = MemoryTransfer(FakeBackend(tmp_path), tmp_path / "transfer")
-    job_id = transfer.start_export_job("history")
+    backend = FakeBackend(tmp_path)
+    job_id = start_export_job(backend, tmp_path / "transfer", "history")
     for _ in range(50):
-        status = transfer.get_export_status(job_id)
+        status = get_export_status(job_id)
         if status["status"] != "running":
             break
         time.sleep(0.01)

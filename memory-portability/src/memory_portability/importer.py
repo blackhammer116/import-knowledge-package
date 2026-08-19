@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from memory_portability.archive import unpack
-from memory_portability.backend import MemoryBackend
+from memory_portability.backend import OmegaClawMemory
 from memory_portability.errors import ImportError as MpImportError
 from memory_portability.errors import RecoveryError
 from memory_portability.extractor import iter_staged_records, read_staged_history
@@ -26,7 +26,7 @@ ROLLBACK_DIR_NAME = ".import_rollback"
 STAGING_DIR_NAME  = ".import_staging"
 _ROLLBACK_STATE   = "state.json"
 def import_archive(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     transfer_dir: Path,
     filename: str,
     mode: str = "overwrite",
@@ -101,7 +101,7 @@ def import_archive(
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
-def recover(backend: MemoryBackend) -> None:
+def recover(backend: OmegaClawMemory) -> None:
     """Restore or clean up an interrupted import transaction."""
     base   = backend.state_dir
     marker = base / TX_MARKER_NAME
@@ -174,7 +174,7 @@ def recover(backend: MemoryBackend) -> None:
     shutil.rmtree(rollback, ignore_errors=True)
 
 def _import_overwrite(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     staging: Path,
     do_history: bool,
     do_vectors: bool,
@@ -238,7 +238,7 @@ def _import_overwrite(
     shutil.rmtree(rollback, ignore_errors=True)
 
 def _import_append(
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     staging: Path,
     manifest: dict,
     do_history: bool,
@@ -316,7 +316,7 @@ def _import_append(
     _write_receipt(receipt, digest, "append", do_history, do_vectors)
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
-def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
+def _restore_rollback(backend: OmegaClawMemory, rollback: Path) -> None:
     """Restore live memory from a rollback snapshot."""
     state_path = rollback / _ROLLBACK_STATE
     try:
@@ -351,7 +351,7 @@ def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
         else:
             raise ValueError("Rollback vector records are missing or unexpected")
 
-def _restore_append_history(backend: MemoryBackend, rollback: Path) -> None:
+def _restore_append_history(backend: OmegaClawMemory, rollback: Path) -> None:
     """Restore history captured before an append import."""
     state_path = rollback / _ROLLBACK_STATE
     try:

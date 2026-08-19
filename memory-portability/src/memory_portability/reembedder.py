@@ -2,11 +2,11 @@ import json
 import os
 from pathlib import Path
 
-from memory_portability.backend import MemoryBackend
+from memory_portability.backend import OmegaClawMemory
 from memory_portability.errors import ImportError as MpImportError
 
 def needs_reembedding(
-    manifest: dict, backend: MemoryBackend, embeddings_missing: bool = False
+    manifest: dict, backend: OmegaClawMemory, embeddings_missing: bool = False
 ) -> bool:
     """Return whether staged records require re-embedding."""
     archive_info = manifest.get("embedding_info", {})
@@ -27,7 +27,7 @@ def needs_reembedding(
 
 def reembed_staged_records(
     staging: Path,
-    backend: MemoryBackend,
+    backend: OmegaClawMemory,
     batch_size: int = 64,
 ) -> None:
     """Re-embed staged records atomically before live records are replaced."""
