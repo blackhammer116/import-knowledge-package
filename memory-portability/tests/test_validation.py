@@ -25,6 +25,6 @@ def test_invalid_archive_never_mutates_live_memory(tmp_path):
     archive = tmp_path / "broken.tar.gz"
     archive.write_bytes(b"not a tar archive")
     backend = FakeBackend(tmp_path / "backend")
-    with pytest.raises(tarfile.ReadError):
+    with pytest.raises(ArchiveValidationError, match="Unreadable archive"):
         import_archive(backend, tmp_path, archive.name)
     assert backend.read_history() == "history\n"

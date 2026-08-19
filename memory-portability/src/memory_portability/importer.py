@@ -8,7 +8,6 @@ from pathlib import Path
 
 from memory_portability.archive import unpack
 from memory_portability.backend import MemoryBackend
-from memory_portability.errors import ArchiveValidationError
 from memory_portability.errors import ImportError as MpImportError
 from memory_portability.errors import RecoveryError
 from memory_portability.extractor import iter_staged_records, read_staged_history
@@ -94,7 +93,7 @@ def import_archive(
 
         if mode == "overwrite":
             _import_overwrite(
-                backend, staging, manifest, do_history, do_vectors, receipt, digest
+                backend, staging, do_history, do_vectors, receipt, digest
             )
         else:
             _import_append(
@@ -181,7 +180,6 @@ def recover(backend: MemoryBackend) -> None:
 def _import_overwrite(
     backend: MemoryBackend,
     staging: Path,
-    manifest: dict,
     do_history: bool,
     do_vectors: bool,
     receipt: Path,
@@ -203,12 +201,14 @@ def _import_overwrite(
             (rollback / "history.metta").write_text(current_history, encoding="utf-8")
 
     if do_vectors:
-        rollback_records_path = rollback / "records.jsonl"
-        with rollback_records_path.open("w", encoding="utf-8") as f:
-            for batch in backend.iter_records(batch_size=500):
-                for rec in batch:
-                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        rollback_state["vectors"] = True
+        vectors_present = backend.vector_store_exists()
+        rollback_state["vectors"] = vectors_present
+        if vectors_present:
+            rollback_records_path = rollback / "records.jsonl"
+            with rollback_records_path.open("w", encoding="utf-8") as f:
+                for batch in backend.iter_records(batch_size=500):
+                    for rec in batch:
+                        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
     _write_json_atomic(rollback / _ROLLBACK_STATE, rollback_state)
 
@@ -354,7 +354,7 @@ def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
         if state["vectors"] is True and records_rb.is_file():
             backend.replace_records(_iter_jsonl(records_rb, batch_size=500))
         elif state["vectors"] is False and not records_rb.exists():
-            backend.replace_records(iter([]))
+            backend.remove_vector_store()
         else:
             raise ValueError("Rollback vector records are missing or unexpected")
 

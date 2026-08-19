@@ -90,35 +90,38 @@ def unpack(archive: Path, dest: Path) -> None:
     seen:            set[str] = set()
     total_extracted: int      = 0
 
-    with tarfile.open(archive, "r:gz") as tar:
-        for member in tar.getmembers():
-            name = member.name
+    try:
+        with tarfile.open(archive, "r:gz") as tar:
+            for member in tar.getmembers():
+                name = member.name
 
-            if name not in ALLOWLIST:
-                raise ArchiveValidationError(
-                    f"Unexpected archive member: {name!r}"
-                )
-            if name in seen:
-                raise ArchiveValidationError(
-                    f"Duplicate archive member: {name!r}"
-                )
-            if not member.isfile():
-                raise ArchiveValidationError(
-                    f"Non-regular archive member: {name!r}"
-                )
-            member_path = Path(name)
-            if member_path.is_absolute() or ".." in member_path.parts:
-                raise ArchiveValidationError(
-                    f"Path traversal in archive member: {name!r}"
-                )
-            total_extracted += member.size
-            if total_extracted > MAX_EXTRACTED_BYTES:
-                raise ArchiveValidationError(
-                    f"Archive extracted size exceeds limit of {MAX_EXTRACTED_BYTES} bytes"
-                )
-            seen.add(name)
+                if name not in ALLOWLIST:
+                    raise ArchiveValidationError(
+                        f"Unexpected archive member: {name!r}"
+                    )
+                if name in seen:
+                    raise ArchiveValidationError(
+                        f"Duplicate archive member: {name!r}"
+                    )
+                if not member.isfile():
+                    raise ArchiveValidationError(
+                        f"Non-regular archive member: {name!r}"
+                    )
+                member_path = Path(name)
+                if member_path.is_absolute() or ".." in member_path.parts:
+                    raise ArchiveValidationError(
+                        f"Path traversal in archive member: {name!r}"
+                    )
+                total_extracted += member.size
+                if total_extracted > MAX_EXTRACTED_BYTES:
+                    raise ArchiveValidationError(
+                        f"Archive extracted size exceeds limit of {MAX_EXTRACTED_BYTES} bytes"
+                    )
+                seen.add(name)
 
-        _safe_extract(tar, base)
+            _safe_extract(tar, base)
+    except tarfile.TarError as exc:
+        raise ArchiveValidationError(f"Unreadable archive: {exc}") from exc
 
 
 def _safe_extract(tar: tarfile.TarFile, base: Path) -> None:

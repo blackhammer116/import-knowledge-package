@@ -21,6 +21,7 @@ class FakeBackend(MemoryBackend):
         self._state_dir.mkdir(parents=True)
         self._history = history
         self._records: dict[str, dict] = {}
+        self._vector_store_exists = False
         self.profile = {"provider": "Local", "model": "model-a", "vector_dimension": 4}
         self.embed_calls: list[list[str]] = []
         self.fail_smoke = False
@@ -48,12 +49,21 @@ class FakeBackend(MemoryBackend):
             yield records[start : start + batch_size]
 
     def replace_records(self, batches: Iterator[list[dict]]) -> None:
+        self._vector_store_exists = True
         self._records = {key: value for key, value in self._records.items() if value["metadata"].get("record_kind") != "user_memory"}
         for batch in batches:
             self.upsert_records(batch)
 
     def upsert_records(self, records: list[dict]) -> None:
+        self._vector_store_exists = True
         self._records.update({item["id"]: item for item in records})
+
+    def vector_store_exists(self) -> bool:
+        return self._vector_store_exists
+
+    def remove_vector_store(self) -> None:
+        self._records.clear()
+        self._vector_store_exists = False
 
     def delete_records(self, ids: list[str]) -> None:
         for record_id in ids:

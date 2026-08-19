@@ -11,7 +11,6 @@ from pathlib import Path
 from memory_portability.archive import (
     ALLOWLIST,
     ARCHIVE_FORMAT_VERSION,
-    COMPONENT_FILES,
     pack,
     unpack,
 )

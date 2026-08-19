@@ -62,6 +62,15 @@ def test_overwrite_failure_restores_absent_history_and_records(tmp_path):
     assert [item["id"] for item in user_records(target)] == ["keep"]
 
 
+def test_overwrite_failure_removes_new_vector_store(tmp_path):
+    _, transfer_dir, result = export_archive(tmp_path)
+    target = FakeBackend(tmp_path / "target", history=None)
+    target.fail_smoke = True
+    with pytest.raises(MemoryImportError):
+        import_archive(target, transfer_dir, result["filename"])
+    assert target.vector_store_exists() is False
+
+
 def test_append_failure_removes_partial_records(tmp_path):
     _, transfer_dir, result = export_archive(tmp_path, "ltm")
     target = FakeBackend(tmp_path / "target")

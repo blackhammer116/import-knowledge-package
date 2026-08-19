@@ -123,6 +123,16 @@ class MemoryBackend(ABC):
         ...
 
     @abstractmethod
+    def vector_store_exists(self) -> bool:
+        """Return whether the physical vector store exists."""
+        ...
+
+    @abstractmethod
+    def remove_vector_store(self) -> None:
+        """Remove the physical vector store when rollback restores absence."""
+        ...
+
+    @abstractmethod
     def upsert_records(self, records: list[dict]) -> None:
         """Add or update a batch of records, preserving package-supplied IDs.
 
