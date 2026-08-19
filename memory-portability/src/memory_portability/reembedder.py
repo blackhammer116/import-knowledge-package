@@ -5,7 +5,6 @@ from pathlib import Path
 from memory_portability.backend import MemoryBackend
 from memory_portability.errors import ImportError as MpImportError
 
-
 def needs_reembedding(
     manifest: dict, backend: MemoryBackend, embeddings_missing: bool = False
 ) -> bool:
@@ -25,7 +24,6 @@ def needs_reembedding(
         or archive_info.get("model")         != active_info.get("model")
         or archive_info.get("vector_dimension") != active_info.get("vector_dimension")
     )
-
 
 def reembed_staged_records(
     staging: Path,

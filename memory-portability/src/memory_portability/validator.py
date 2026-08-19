@@ -6,7 +6,6 @@ from pathlib import Path
 from memory_portability.archive import ARCHIVE_FORMAT_VERSION, COMPONENT_FILES
 from memory_portability.errors import ArchiveValidationError
 
-
 def validate_manifest(raw: object) -> dict:
     """Validate a decoded manifest."""
     if not isinstance(raw, dict):
@@ -94,7 +93,6 @@ def validate_manifest(raw: object) -> dict:
 
     return raw
 
-
 def validate_checksums(staging: Path, manifest: dict) -> None:
     """Verify checksummed archive members."""
     for member_name, expected in manifest["checksums"].items():
@@ -109,7 +107,6 @@ def validate_checksums(staging: Path, manifest: dict) -> None:
                 f"Checksum mismatch for {member_name!r}: "
                 f"expected {expected}, got {actual}"
             )
-
 
 def validate_collections(staging: Path, manifest: dict) -> None:
     """Validate collections metadata against the manifest."""
@@ -137,7 +134,6 @@ def validate_collections(staging: Path, manifest: dict) -> None:
             "Archive vector/collections.json embedding_info does not match manifest"
         )
 
-
 def validate_history(staging: Path, manifest: dict) -> None:
     """Validate the history member and its declared byte length."""
     path = staging / "history" / "history.metta"
@@ -147,7 +143,6 @@ def validate_history(staging: Path, manifest: dict) -> None:
         raise ArchiveValidationError(
             "Archive history byte count does not match manifest"
         )
-
 
 def validate_records(staging: Path, manifest: dict) -> bool:
     """Validate staged records and report whether any embeddings are absent."""
@@ -181,7 +176,6 @@ def validate_records(staging: Path, manifest: dict) -> bool:
         )
     return missing_embeddings
 
-
 def _validate_embedding_info(manifest: dict) -> None:
     """Validate ``embedding_info`` inside a manifest dict."""
     info = manifest.get("embedding_info")
@@ -197,7 +191,6 @@ def _validate_embedding_info(manifest: dict) -> None:
         raise ArchiveValidationError(
             "Archive manifest has invalid or missing embedding_info"
         )
-
 
 def _validate_record(record: object, line_no: int, dimension: int) -> bool:
     """Validate a single decoded JSONL record."""
@@ -235,7 +228,6 @@ def _validate_record(record: object, line_no: int, dimension: int) -> bool:
             f"Archive record {record_id!r} on line {line_no} has invalid metadata"
         )
     return not embedding
-
 
 def _sha256(path: Path) -> str:
     """Return the lowercase hex SHA-256 digest of a file."""

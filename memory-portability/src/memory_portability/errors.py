@@ -9,10 +9,8 @@ All exceptions raised by the package are subclasses of
 while still distinguishing the specific failure category when needed.
 """
 
-
 class MemoryPortabilityError(Exception):
     """Base class for all memory-portability exceptions."""
-
 
 class ArchiveValidationError(MemoryPortabilityError):
     """Raised when an archive fails any structural or content validation check.
@@ -21,7 +19,6 @@ class ArchiveValidationError(MemoryPortabilityError):
     schema violation, record count mismatch, size limit exceeded.
     """
 
-
 class ExportError(MemoryPortabilityError):
     """Raised when an export operation cannot be completed.
 
@@ -29,14 +26,12 @@ class ExportError(MemoryPortabilityError):
     archive publication failure.
     """
 
-
 class ImportError(MemoryPortabilityError):
     """Raised when an import operation cannot be completed.
 
     Examples: archive not found, staging failure, backend write failure,
     smoke test failure after restore.
     """
-
 
 class RecoveryError(MemoryPortabilityError):
     """Raised when crash recovery cannot complete safely.

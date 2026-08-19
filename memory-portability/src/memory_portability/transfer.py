@@ -4,7 +4,6 @@ from pathlib import Path
 from memory_portability.backend import MemoryBackend
 from memory_portability import exporter, importer
 
-
 class MemoryTransfer:
     """Coordinate export, import, and recovery for one storage backend."""
 

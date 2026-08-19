@@ -8,8 +8,6 @@ from memory_portability.errors import ArchiveValidationError
 from memory_portability.importer import import_archive
 
 from conftest import FakeBackend
-
-
 def test_unpack_rejects_unexpected_archive_member(tmp_path):
     archive = tmp_path / "unsafe.tar.gz"
     with tarfile.open(archive, "w:gz") as output:
@@ -19,8 +17,6 @@ def test_unpack_rejects_unexpected_archive_member(tmp_path):
         output.addfile(info, io.BytesIO(payload))
     with pytest.raises(ArchiveValidationError, match="Unexpected archive member"):
         unpack(archive, tmp_path / "staging")
-
-
 def test_invalid_archive_never_mutates_live_memory(tmp_path):
     archive = tmp_path / "broken.tar.gz"
     archive.write_bytes(b"not a tar archive")

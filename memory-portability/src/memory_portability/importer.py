@@ -25,8 +25,6 @@ RECEIPT_DIR_NAME  = ".memory_import_receipts"
 ROLLBACK_DIR_NAME = ".import_rollback"
 STAGING_DIR_NAME  = ".import_staging"
 _ROLLBACK_STATE   = "state.json"
-
-
 def import_archive(
     backend: MemoryBackend,
     transfer_dir: Path,
@@ -103,7 +101,6 @@ def import_archive(
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
-
 def recover(backend: MemoryBackend) -> None:
     """Restore or clean up an interrupted import transaction."""
     base   = backend.state_dir
@@ -176,7 +173,6 @@ def recover(backend: MemoryBackend) -> None:
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
 
-
 def _import_overwrite(
     backend: MemoryBackend,
     staging: Path,
@@ -240,7 +236,6 @@ def _import_overwrite(
     _write_receipt(receipt, digest, "overwrite", do_history, do_vectors)
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
-
 
 def _import_append(
     backend: MemoryBackend,
@@ -321,8 +316,6 @@ def _import_append(
     _write_receipt(receipt, digest, "append", do_history, do_vectors)
     marker.unlink(missing_ok=True)
     shutil.rmtree(rollback, ignore_errors=True)
-
-
 def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
     """Restore live memory from a rollback snapshot."""
     state_path = rollback / _ROLLBACK_STATE
@@ -358,7 +351,6 @@ def _restore_rollback(backend: MemoryBackend, rollback: Path) -> None:
         else:
             raise ValueError("Rollback vector records are missing or unexpected")
 
-
 def _restore_append_history(backend: MemoryBackend, rollback: Path) -> None:
     """Restore history captured before an append import."""
     state_path = rollback / _ROLLBACK_STATE
@@ -378,7 +370,6 @@ def _restore_append_history(backend: MemoryBackend, rollback: Path) -> None:
         backend.write_history(history.read_text(encoding="utf-8"))
     else:
         raise ValueError("Append rollback history is missing")
-
 
 def _iter_jsonl(path: Path, batch_size: int = 500):
     """Yield batches of dicts from a JSONL file."""
@@ -400,7 +391,6 @@ def _iter_jsonl(path: Path, batch_size: int = 500):
     if batch:
         yield batch
 
-
 def _receipt_path(
     base: Path, digest: str, mode: str,
     include_history: bool, include_vectors: bool
@@ -410,7 +400,6 @@ def _receipt_path(
         if included
     )
     return base / RECEIPT_DIR_NAME / f"{digest}-{mode}-{components}.json"
-
 
 def _write_receipt(
     path: Path, digest: str, mode: str,
@@ -426,13 +415,11 @@ def _write_receipt(
     }
     _write_json_atomic(path, receipt)
 
-
 def _write_json_atomic(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
     os.replace(tmp, path)
-
 
 def _marker_has_receipt(marker: Path, base: Path) -> bool:
     try:
@@ -445,14 +432,12 @@ def _marker_has_receipt(marker: Path, base: Path) -> bool:
         and (base / RECEIPT_DIR_NAME / receipt_name).is_file()
     )
 
-
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
-
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()

@@ -12,12 +12,10 @@ tests after a restore.
 Agents implement ``MemoryBackend`` and pass an instance to ``MemoryTransfer``.
 The package never imports ChromaDB, torch, or any embedding library directly.
 """
-
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from pathlib import Path
-
 
 class MemoryBackend(ABC):
     """Abstract interface between the portability package and agent storage.
@@ -35,7 +33,6 @@ class MemoryBackend(ABC):
     # ------------------------------------------------------------------
     # Concurrency and paths
     # ------------------------------------------------------------------
-
     @property
     @abstractmethod
     def write_lock(self) -> AbstractContextManager:
@@ -70,7 +67,6 @@ class MemoryBackend(ABC):
     # ------------------------------------------------------------------
     # History operations
     # ------------------------------------------------------------------
-
     @abstractmethod
     def read_history(self) -> str | None:
         """Return the full content of the history file, or None if absent."""
@@ -89,7 +85,6 @@ class MemoryBackend(ABC):
     # ------------------------------------------------------------------
     # Vector record operations
     # ------------------------------------------------------------------
-
     @abstractmethod
     def iter_records(self, batch_size: int) -> Iterator[list[dict]]:
         """Yield batches of portable user memory records for export.
@@ -154,7 +149,6 @@ class MemoryBackend(ABC):
     # ------------------------------------------------------------------
     # Embedding
     # ------------------------------------------------------------------
-
     @abstractmethod
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Return embeddings for ``texts`` using the agent's active model.
@@ -188,7 +182,6 @@ class MemoryBackend(ABC):
     # ------------------------------------------------------------------
     # Manifest metadata and smoke tests
     # ------------------------------------------------------------------
-
     @abstractmethod
     def get_archive_metadata(self) -> dict:
         """Return format-v1 producer and store metadata for the manifest.

@@ -21,7 +21,6 @@ COMPONENT_FILES: dict[str, set[str]] = {
 MAX_COMPRESSED_BYTES: int = 500 * 1024 * 1024         # 500 MB
 MAX_EXTRACTED_BYTES:  int = 2   * 1024 * 1024 * 1024  # 2 GB
 
-
 def pack(staging: Path, dest: Path) -> None:
     """Pack allowlisted files from ``staging`` into a ``.tar.gz`` at ``dest``.
 
@@ -51,7 +50,6 @@ def pack(staging: Path, dest: Path) -> None:
             p = staging / member
             if p.exists():
                 tar.add(p, arcname=member)
-
 
 def unpack(archive: Path, dest: Path) -> None:
     """Extract allowlisted regular files from ``archive`` into ``dest``.
@@ -122,7 +120,6 @@ def unpack(archive: Path, dest: Path) -> None:
             _safe_extract(tar, base)
     except tarfile.TarError as exc:
         raise ArchiveValidationError(f"Unreadable archive: {exc}") from exc
-
 
 def _safe_extract(tar: tarfile.TarFile, base: Path) -> None:
     """Extract only regular allowlisted members without relying on tarfile filters.

@@ -29,7 +29,6 @@ _jobs_lock = threading.Lock()
 
 _VALID_COMPONENTS = frozenset({"history", "ltm", "both"})
 
-
 def export(
     backend: MemoryBackend,
     transfer_dir: Path,
@@ -96,7 +95,6 @@ def export(
         "components":   components,
     }
 
-
 def start_export_job(
     backend: MemoryBackend,
     transfer_dir: Path,
@@ -121,12 +119,10 @@ def start_export_job(
 
     return job_id
 
-
 def get_export_status(job_id: str) -> dict:
     """Return the current status for an export job."""
     with _jobs_lock:
         return _jobs.get(job_id, {"status": "unknown"}).copy()
-
 
 def _run_export_job(
     job_id: str,
@@ -151,7 +147,6 @@ def _run_export_job(
         except Exception:
             pass  # callback errors must never crash the background thread
 
-
 def _snapshot_history(backend: MemoryBackend, staging: Path) -> int:
     """Write history content into staging. Returns byte size written."""
     content = backend.read_history()
@@ -162,7 +157,6 @@ def _snapshot_history(backend: MemoryBackend, staging: Path) -> int:
         return dst.stat().st_size
     dst.touch()
     return 0
-
 
 def _snapshot_vectors(
     backend: MemoryBackend, staging: Path
@@ -209,7 +203,6 @@ def _snapshot_vectors(
 
     return record_count, embedding_info
 
-
 def _build_manifest(
     backend: MemoryBackend,
     staging: Path,
@@ -246,7 +239,6 @@ def _build_manifest(
         encoding="utf-8",
     )
 
-
 def _verify_packed_archive(archive: Path, staging: Path) -> None:
     """Fully validate the final archive before publishing it."""
     unpack(archive, staging)
@@ -263,15 +255,12 @@ def _verify_packed_archive(archive: Path, staging: Path) -> None:
     except Exception as exc:
         raise ExportError(f"Packed archive validation failed: {exc}") from exc
 
-
 def _archive_name() -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     return f"omegaclaw-memory-{timestamp}.tar.gz"
 
-
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
 
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()

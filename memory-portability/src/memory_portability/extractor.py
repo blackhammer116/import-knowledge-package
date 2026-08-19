@@ -24,7 +24,6 @@ from pathlib import Path
 
 from memory_portability.errors import ArchiveValidationError
 
-
 def iter_staged_records(staging: Path, batch_size: int = 500) -> Iterator[list[dict]]:
     """Yield validated, normalised records from staging in batches.
 
@@ -77,7 +76,6 @@ def iter_staged_records(staging: Path, batch_size: int = 500) -> Iterator[list[d
     if batch:
         yield batch
 
-
 def read_staged_history(staging: Path) -> str | None:
     """Return the content of ``history/history.metta`` from staging.
 
@@ -92,7 +90,6 @@ def read_staged_history(staging: Path) -> str | None:
     if not path.exists():
         return None
     return path.read_text(encoding="utf-8")
-
 
 def normalise_metadata(metadata: object) -> dict:
     """Convert a raw metadata value into ChromaDB-compatible scalar form.
@@ -144,7 +141,6 @@ def normalise_metadata(metadata: object) -> dict:
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
-
 def _normalise_record(raw: object, line_no: int) -> dict:
     """Validate and normalise a single decoded record from JSONL."""
     if not isinstance(raw, dict):

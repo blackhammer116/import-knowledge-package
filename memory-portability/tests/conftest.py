@@ -3,8 +3,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from memory_portability.backend import MemoryBackend
-
-
 def record(record_id: str, document: str = "memory") -> dict:
     return {
         "id": record_id,
@@ -12,8 +10,6 @@ def record(record_id: str, document: str = "memory") -> dict:
         "embedding": [0.1, 0.2, 0.3, 0.4],
         "metadata": {"record_kind": "user_memory"},
     }
-
-
 class FakeBackend(MemoryBackend):
     def __init__(self, tmp_path: Path, history: str | None = "history\n") -> None:
         self._lock = threading.Lock()
@@ -82,7 +78,5 @@ class FakeBackend(MemoryBackend):
     def smoke_test(self, include_history: bool, include_vectors: bool) -> None:
         if self.fail_smoke:
             raise RuntimeError("forced smoke failure")
-
-
 def user_records(backend: FakeBackend) -> list[dict]:
     return [record for batch in backend.iter_records(100) for record in batch]
