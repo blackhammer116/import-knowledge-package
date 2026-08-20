@@ -2,8 +2,8 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from memory_portability import exporter, importer
-from memory_portability.backend import OmegaClawMemory
+from . import exporter, importer
+from .backend import OmegaClawMemory
 
 
 class MemoryTransfer:

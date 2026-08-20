@@ -2,8 +2,8 @@ import json
 import os
 from pathlib import Path
 
-from memory_portability.backend import OmegaClawMemory
-from memory_portability.errors import ImportError as MpImportError
+from .backend import OmegaClawMemory
+from .errors import ImportError as MpImportError
 
 def needs_reembedding(
     manifest: dict, backend: OmegaClawMemory, embeddings_missing: bool = False

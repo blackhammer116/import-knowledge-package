@@ -3,7 +3,8 @@
 A utility package for importing distilled knowledge and curriculum files into a ChromaDB-based Long-Term Memory (LTM) system.
 
 ## Purpose
-The `import-kb` package is designed to bridge the gap between static knowledge files (JSONL, MeTTa) and an active agent's memory. It processes structured knowledge, generates vector embeddings, and upserts them into a ChromaDB collection, enabling semantic search and retrieval for AI agents.
+The `import-kb` package imports static knowledge files into an agent's ChromaDB
+memory and provides OmegaClaw memory export and restore operations.
 
 ## Supported Embedding Models
 This package supports two primary embedding modes:
@@ -75,10 +76,32 @@ initLocalEmbedding(model_name="intfloat/e5-large-v2")
 main()
 ```
 
+## Memory Portability
+
+Memory portability exports and restores OmegaClaw conversation history and
+user-created long-term memory. It is available from the same installation:
+
+```bash
+memory-portability recover
+memory-portability import \
+  --transfer-dir /memory-transfer \
+  --filename omegaclaw-memory-<timestamp>.tar.gz \
+  --mode overwrite
+```
+
+Or use the module directly:
+
+```bash
+python -m import_knowledge.memory_portability recover
+```
+
+Programmatic users can import `MemoryTransfer` from
+`import_knowledge.memory_portability`.
+
 ## Dependencies
 - `openai`: For cloud-based embeddings.
 - `sentence-transformers`: For local, offline embeddings.
-- `chromadb`: Vector database for storage.
+- `chromadb`: Vector database for storage and memory portability.
 - `python-dotenv`: Management of environment variables.
 - `tqdm`: Progress bars for batch processing.
 

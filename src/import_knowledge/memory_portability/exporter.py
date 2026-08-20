@@ -8,15 +8,15 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
-from memory_portability.archive import (
+from .archive import (
     ALLOWLIST,
     ARCHIVE_FORMAT_VERSION,
     pack,
     unpack,
 )
-from memory_portability.backend import OmegaClawMemory
-from memory_portability.errors import ExportError
-from memory_portability.validator import (
+from .backend import OmegaClawMemory
+from .errors import ExportError
+from .validator import (
     validate_checksums,
     validate_collections,
     validate_history,

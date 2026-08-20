@@ -3,9 +3,9 @@ import time
 
 import pytest
 
-from memory_portability.errors import ImportError as MemoryImportError
-from memory_portability.exporter import export, get_export_status, start_export_job
-from memory_portability.importer import import_archive
+from import_knowledge.memory_portability.errors import ImportError as MemoryImportError
+from import_knowledge.memory_portability.exporter import export, get_export_status, start_export_job
+from import_knowledge.memory_portability.importer import import_archive
 
 from conftest import FakeBackend, record, user_records
 def export_archive(tmp_path, component="both"):

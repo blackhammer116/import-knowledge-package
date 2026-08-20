@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "import-kb"
-version = "0.1.8"
-description = "A package for importing knowledge and embedding text."
+version = "0.2.0"
+description = "Import knowledge and manage OmegaClaw memory portability."
 readme = "README.md"
 authors = [
     { name = "Coderskin", email = "nebiyu.samuel@singularitynet.io" }
 ]
 license = { text = "MIT" }
-keywords = ["knowledge", "embedding", "openai", "chromadb"]
+keywords = ["knowledge", "embedding", "memory", "backup", "restore", "chromadb"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -20,7 +20,7 @@ classifiers = [
 requires-python = ">=3.7"
 dependencies = [
     "openai>=1.0.0",
-    "chromadb>=0.3.21",
+    "chromadb>=0.6",
     "python-dotenv>=0.20.0",
     "tqdm>=4.64.0",
     "sentence-transformers>=2.2.0",
@@ -43,3 +43,4 @@ import_knowledge = ["KB/*.jsonl", "KB/*.metta"]
 
 [project.scripts]
 import-knowledge = "import_knowledge.import_knowledge:main"
+memory-portability = "import_knowledge.memory_portability.__main__:main"

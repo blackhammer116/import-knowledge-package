@@ -6,13 +6,13 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from memory_portability.archive import unpack
-from memory_portability.backend import OmegaClawMemory
-from memory_portability.errors import ImportError as MpImportError
-from memory_portability.errors import RecoveryError
-from memory_portability.extractor import iter_staged_records, read_staged_history
-from memory_portability.reembedder import needs_reembedding, reembed_staged_records
-from memory_portability.validator import (
+from .archive import unpack
+from .backend import OmegaClawMemory
+from .errors import ImportError as MpImportError
+from .errors import RecoveryError
+from .extractor import iter_staged_records, read_staged_history
+from .reembedder import needs_reembedding, reembed_staged_records
+from .validator import (
     validate_checksums,
     validate_collections,
     validate_history,

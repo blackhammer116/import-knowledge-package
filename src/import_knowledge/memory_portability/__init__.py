@@ -1,5 +1,5 @@
-from memory_portability.transfer import MemoryTransfer
-from memory_portability.errors import (
+from .transfer import MemoryTransfer
+from .errors import (
     MemoryPortabilityError,
     ArchiveValidationError,
     ImportError,

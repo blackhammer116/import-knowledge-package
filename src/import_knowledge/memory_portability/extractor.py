@@ -22,7 +22,7 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
-from memory_portability.errors import ArchiveValidationError
+from .errors import ArchiveValidationError
 
 def iter_staged_records(staging: Path, batch_size: int = 500) -> Iterator[list[dict]]:
     """Yield validated, normalised records from staging in batches.

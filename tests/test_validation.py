@@ -3,9 +3,9 @@ import tarfile
 
 import pytest
 
-from memory_portability.archive import unpack
-from memory_portability.errors import ArchiveValidationError
-from memory_portability.importer import import_archive
+from import_knowledge.memory_portability.archive import unpack
+from import_knowledge.memory_portability.errors import ArchiveValidationError
+from import_knowledge.memory_portability.importer import import_archive
 
 from conftest import FakeBackend
 def test_unpack_rejects_unexpected_archive_member(tmp_path):
