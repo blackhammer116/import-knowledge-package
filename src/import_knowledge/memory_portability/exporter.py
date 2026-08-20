@@ -2,30 +2,24 @@ import hashlib
 import json
 import os
 import shutil
-import threading
-import uuid
-from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .archive import (
+from import_knowledge.memory_portability.archive import (
     ALLOWLIST,
     ARCHIVE_FORMAT_VERSION,
     pack,
     unpack,
 )
-from .backend import OmegaClawMemory
-from .errors import ExportError
-from .validator import (
+from import_knowledge.memory_portability.backend import OmegaClawMemory
+from import_knowledge.memory_portability.errors import ExportError
+from import_knowledge.memory_portability.validator import (
     validate_checksums,
     validate_collections,
     validate_history,
     validate_manifest,
     validate_records,
 )
-
-_jobs: dict[str, dict] = {}
-_jobs_lock = threading.Lock()
 
 _VALID_COMPONENTS = frozenset({"history", "ltm", "both"})
 
@@ -60,14 +54,13 @@ def export(
         embedding_info: dict = {}
         components:     list[str] = []
 
-        with backend.write_lock:
-            if include_history:
-                _snapshot_history(backend, staging)
-                components.append("history")
+        if include_history:
+            _snapshot_history(backend, staging)
+            components.append("history")
 
-            if include_vectors:
-                record_count, embedding_info = _snapshot_vectors(backend, staging)
-                components.append("ltm")
+        if include_vectors:
+            record_count, embedding_info = _snapshot_vectors(backend, staging)
+            components.append("ltm")
 
         _build_manifest(backend, staging, components, record_count, embedding_info)
         pack(staging, tmp_archive)
@@ -94,58 +87,6 @@ def export(
         "record_count": record_count,
         "components":   components,
     }
-
-def start_export_job(
-    backend: OmegaClawMemory,
-    transfer_dir: Path,
-    component: str,
-    on_complete: Callable[[str, dict], None] | None = None,
-) -> str:
-    """Start a background export and return its job ID."""
-    if component not in _VALID_COMPONENTS:
-        raise ValueError(
-            f"Invalid component: {component!r}. Use 'history', 'ltm', or 'both'."
-        )
-
-    job_id = uuid.uuid4().hex
-    with _jobs_lock:
-        _jobs[job_id] = {"status": "running"}
-
-    threading.Thread(
-        target=_run_export_job,
-        args=(job_id, backend, transfer_dir, component, on_complete),
-        daemon=True,
-    ).start()
-
-    return job_id
-
-def get_export_status(job_id: str) -> dict:
-    """Return the current status for an export job."""
-    with _jobs_lock:
-        return _jobs.get(job_id, {"status": "unknown"}).copy()
-
-def _run_export_job(
-    job_id: str,
-    backend: OmegaClawMemory,
-    transfer_dir: Path,
-    component: str,
-    on_complete: Callable[[str, dict], None] | None,
-) -> None:
-    """Background thread target: run export and update job registry."""
-    try:
-        result = export(backend, transfer_dir, component)
-        status = {"status": "done", **result}
-    except Exception as exc:
-        status = {"status": "failed", "error": str(exc)}
-
-    with _jobs_lock:
-        _jobs[job_id] = status
-
-    if on_complete is not None:
-        try:
-            on_complete(job_id, status.copy())
-        except Exception:
-            pass  # callback errors must never crash the background thread
 
 def _snapshot_history(backend: OmegaClawMemory, staging: Path) -> int:
     """Write history content into staging. Returns byte size written."""

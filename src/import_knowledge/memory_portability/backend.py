@@ -1,7 +1,6 @@
 import os
 import shutil
 from collections.abc import Iterator
-from contextlib import AbstractContextManager
 from pathlib import Path
 
 import chromadb
@@ -12,11 +11,6 @@ class OmegaClawMemory:
         self._memory_dir = Path(os.environ.get("MEMORY_DIR", Path.cwd() / "memory")).resolve()
         self._client = None
         self._collection = None
-
-    @property
-    def write_lock(self) -> AbstractContextManager:
-        from src.memory_gateway import _write_lock
-        return _write_lock
 
     @property
     def state_dir(self) -> Path:

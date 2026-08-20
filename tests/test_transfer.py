@@ -1,10 +1,9 @@
 import tarfile
-import time
 
 import pytest
 
 from import_knowledge.memory_portability.errors import ImportError as MemoryImportError
-from import_knowledge.memory_portability.exporter import export, get_export_status, start_export_job
+from import_knowledge.memory_portability.exporter import export
 from import_knowledge.memory_portability.importer import import_archive
 
 from conftest import FakeBackend, record, user_records
@@ -71,12 +70,3 @@ def test_mismatched_embedding_profile_reembeds_before_import(tmp_path):
     import_archive(target, transfer_dir, result["filename"], include_history=False)
     assert target.embed_calls == [["portable memory"]]
     assert user_records(target)[0]["embedding"] == [0.5, 0.5]
-def test_async_export_reaches_done_status(tmp_path):
-    backend = FakeBackend(tmp_path)
-    job_id = start_export_job(backend, tmp_path / "transfer", "history")
-    for _ in range(50):
-        status = get_export_status(job_id)
-        if status["status"] != "running":
-            break
-        time.sleep(0.01)
-    assert status["status"] == "done"

@@ -1,9 +1,8 @@
 import os
-from collections.abc import Callable
 from pathlib import Path
 
-from . import exporter, importer
-from .backend import OmegaClawMemory
+from import_knowledge.memory_portability import exporter, importer
+from import_knowledge.memory_portability.backend import OmegaClawMemory
 
 
 class MemoryTransfer:
@@ -15,16 +14,6 @@ class MemoryTransfer:
 
     def export(self, component: str) -> dict:
         return exporter.export(self._backend, self._transfer_dir, component)
-
-    def start_export_job(
-        self, component: str, on_complete: Callable[[str, dict], None] | None = None
-    ) -> str:
-        return exporter.start_export_job(
-            self._backend, self._transfer_dir, component, on_complete
-        )
-
-    def get_export_status(self, job_id: str) -> dict:
-        return exporter.get_export_status(job_id)
 
     def import_archive(
         self,

@@ -2,7 +2,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from .errors import ArchiveValidationError
+from import_knowledge.memory_portability.errors import ArchiveValidationError
 
 ARCHIVE_FORMAT_VERSION: int = 1
 

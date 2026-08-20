@@ -1,4 +1,3 @@
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -11,7 +10,6 @@ def record(record_id: str, document: str = "memory") -> dict:
     }
 class FakeBackend:
     def __init__(self, tmp_path: Path, history: str | None = "history\n") -> None:
-        self._lock = threading.Lock()
         self._state_dir = tmp_path / "memory"
         self._state_dir.mkdir(parents=True)
         self._history = history
@@ -20,10 +18,6 @@ class FakeBackend:
         self.profile = {"provider": "Local", "model": "model-a", "vector_dimension": 4}
         self.embed_calls: list[list[str]] = []
         self.fail_smoke = False
-
-    @property
-    def write_lock(self):
-        return self._lock
 
     @property
     def state_dir(self) -> Path:

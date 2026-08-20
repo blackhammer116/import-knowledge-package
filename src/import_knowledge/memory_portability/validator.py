@@ -3,8 +3,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .archive import ARCHIVE_FORMAT_VERSION, COMPONENT_FILES
-from .errors import ArchiveValidationError
+from import_knowledge.memory_portability.archive import ARCHIVE_FORMAT_VERSION, COMPONENT_FILES
+from import_knowledge.memory_portability.errors import ArchiveValidationError
 
 def validate_manifest(raw: object) -> dict:
     """Validate a decoded manifest."""

@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from .transfer import MemoryTransfer
+from import_knowledge.memory_portability.transfer import MemoryTransfer
 
 
 def main() -> None:
