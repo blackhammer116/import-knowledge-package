@@ -254,10 +254,12 @@ def _create_rollback(
         if current is not None:
             (rollback / "history.metta").write_text(current, encoding="utf-8")
     if vectors:
+        state["chroma_present"] = store.vector_store_exists()
         with (rollback / "records.jsonl").open("w", encoding="utf-8") as output:
-            for batch in store.iter_user_records(include_embeddings=True):
-                for record in batch:
-                    output.write(json.dumps(record, ensure_ascii=False) + "\n")
+            if state["chroma_present"]:
+                for batch in store.iter_user_records(include_embeddings=True):
+                    for record in batch:
+                        output.write(json.dumps(record, ensure_ascii=False) + "\n")
     _write_json_atomic(rollback / "state.json", state)
 
 
@@ -266,8 +268,14 @@ def _restore_rollback(store: MemoryStore, rollback: Path) -> None:
     if state.get("history"):
         _restore_history(store, rollback, state)
     if state.get("vectors"):
-        store.replace_user_records(iter_records(rollback / "records.jsonl"))
-    store.smoke_test(bool(state.get("history")), bool(state.get("vectors")))
+        if state["chroma_present"]:
+            store.replace_user_records(iter_records(rollback / "records.jsonl"))
+        else:
+            store.remove_vector_store()
+    store.smoke_test(
+        bool(state.get("history")),
+        bool(state.get("vectors") and state.get("chroma_present")),
+    )
 
 
 def _restore_history(
@@ -291,6 +299,8 @@ def _read_rollback_state(rollback: Path) -> dict:
         raise ValueError("Rollback state is invalid")
     if type(state.get("history")) is not bool or type(state.get("vectors")) is not bool:
         raise ValueError("Rollback component flags are invalid")
+    if state["vectors"] and type(state.get("chroma_present")) is not bool:
+        raise ValueError("Rollback Chroma presence flag is invalid")
     return state
 
 

@@ -8,6 +8,7 @@ ChromaDB files; records are read and written through Chroma's public API.
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Callable, Iterable, Iterator
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -180,6 +181,15 @@ class MemoryStore:
     def delete_records(self, record_ids: list[str]) -> None:
         if record_ids:
             self.collection().delete(ids=record_ids)
+
+    def vector_store_exists(self) -> bool:
+        return self.chroma_path.exists()
+
+    def remove_vector_store(self) -> None:
+        """Remove a vector store created by a failed import into fresh memory."""
+        self._collection = None
+        self._client = None
+        shutil.rmtree(self.chroma_path, ignore_errors=True)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if self._embed_batch is not None:

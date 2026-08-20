@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ def load_and_validate(staging: Path, actual_members: set[str]) -> tuple[dict, bo
         raise ArchiveValidationError(
             f"Unsupported format version: {manifest.get('format_version')!r}"
         )
+    _validate_manifest_metadata(manifest)
 
     components = manifest.get("components")
     if (
@@ -83,6 +85,28 @@ def load_and_validate(staging: Path, actual_members: set[str]) -> tuple[dict, bo
             staging / "vector/records.jsonl", manifest, expected_dimension
         )
     return manifest, missing_embeddings
+
+
+def _validate_manifest_metadata(manifest: dict) -> None:
+    created_at = manifest.get("created_at")
+    if not isinstance(created_at, str):
+        raise ArchiveValidationError("Manifest created_at is required")
+    try:
+        parsed_created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ArchiveValidationError("Manifest created_at must be ISO-8601") from exc
+    if parsed_created_at.tzinfo is None:
+        raise ArchiveValidationError("Manifest created_at must include a timezone")
+
+    source = manifest.get("source")
+    if not isinstance(source, dict):
+        raise ArchiveValidationError("Manifest source is required")
+    for key in ("omegaclaw_version", "chromadb_version"):
+        if not isinstance(source.get(key), str) or not source[key]:
+            raise ArchiveValidationError(f"Manifest source.{key} is required")
+
+    if type(manifest.get("embeddings_included")) is not bool:
+        raise ArchiveValidationError("Manifest embeddings_included must be a boolean")
 
 
 def _validate_history(path: Path) -> None:

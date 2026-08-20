@@ -52,11 +52,14 @@ def profiles_compatible(source: dict, active: dict, missing_embeddings: bool) ->
             return False
     source_dimension = source.get("vector_dimension")
     active_dimension = active.get("vector_dimension")
-    return (
-        source_dimension is None
-        or active_dimension is None
-        or source_dimension == active_dimension
-    )
+    if (
+        type(source_dimension) is not int
+        or source_dimension <= 0
+        or type(active_dimension) is not int
+        or active_dimension <= 0
+    ):
+        return False
+    return source_dimension == active_dimension
 
 
 def reembed_records(staging: Path, store: MemoryStore) -> None:

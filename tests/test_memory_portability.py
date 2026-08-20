@@ -1,4 +1,6 @@
 import io
+import json
+import re
 import tarfile
 
 import pytest
@@ -10,6 +12,8 @@ from memory_portability.errors import (
 )
 from memory_portability.storage import MemoryStore
 from memory_portability.transfer import MemoryTransfer
+from memory_portability.records import profiles_compatible
+from memory_portability.validator import load_and_validate
 
 
 PROFILE = {"provider": "Local", "model": "test-model", "vector_dimension": 2}
@@ -74,6 +78,17 @@ def test_round_trip_restores_user_memory_and_preserves_knowledge(tmp_path):
     assert target.read_history() == "source history\n"
     assert [item["id"] for item in user_records(target)] == ["source-memory"]
     assert target.collection().get(ids=["knowledge-prior"])["ids"] == ["knowledge-prior"]
+
+
+def test_default_export_filename_has_no_random_suffix(tmp_path):
+    source = make_store(tmp_path, "source")
+    source.write_history("history\n")
+
+    result = MemoryTransfer(tmp_path / "transfer", source).export("history")
+
+    assert re.fullmatch(
+        r"omegaclaw-memory-\d{8}T\d{6}Z\.tar\.gz", result["filename"]
+    )
 
 
 def test_export_without_embeddings_reembeds_on_import(tmp_path):
@@ -167,6 +182,51 @@ def test_failed_overwrite_restores_previous_memory(tmp_path):
 
     assert target.read_history() == "target history\n"
     assert [item["id"] for item in user_records(target)] == ["target-memory"]
+
+
+def test_failed_overwrite_removes_vector_store_created_for_fresh_memory(tmp_path):
+    source = make_store(tmp_path, "source")
+    source.write_history("source history\n")
+    source.upsert_records([record("source-memory", "source")])
+    transfer_dir = tmp_path / "transfer"
+    MemoryTransfer(transfer_dir, source).export("both", filename="fresh.tar.gz")
+
+    target = make_store(tmp_path, "fresh-target", store_class=FailOnceStore)
+    assert target.history_path.exists() is False
+    assert target.chroma_path.exists() is False
+
+    with pytest.raises(MemoryImportError, match="rolled back"):
+        MemoryTransfer(transfer_dir, target).import_archive("fresh.tar.gz")
+
+    assert target.history_path.exists() is False
+    assert target.chroma_path.exists() is False
+
+
+def test_unknown_source_dimension_is_not_compatible():
+    source = {"provider": "OpenAI", "model": "model", "vector_dimension": None}
+    active = {"provider": "OpenAI", "model": "model", "vector_dimension": 3072}
+
+    assert profiles_compatible(source, active, missing_embeddings=False) is False
+
+
+@pytest.mark.parametrize("missing_field", ["created_at", "source", "embeddings_included"])
+def test_manifest_requires_portability_metadata(tmp_path, missing_field):
+    source = make_store(tmp_path, f"source-{missing_field}")
+    source.write_history("history\n")
+    transfer_dir = tmp_path / f"transfer-{missing_field}"
+    result = MemoryTransfer(transfer_dir, source).export(
+        "history", filename=f"{missing_field}.tar.gz"
+    )
+
+    staging = tmp_path / f"staging-{missing_field}"
+    members = unpack(transfer_dir / result["filename"], staging)
+    manifest_path = staging / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop(missing_field)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ArchiveValidationError, match=missing_field):
+        load_and_validate(staging, members)
 
 
 def test_recover_rolls_back_an_interrupted_overwrite(tmp_path):

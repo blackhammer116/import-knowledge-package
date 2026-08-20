@@ -110,7 +110,7 @@ def export_memory(
 
 def _default_filename() -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    return f"omegaclaw-memory-{timestamp}-{uuid.uuid4().hex[:8]}.tar.gz"
+    return f"omegaclaw-memory-{timestamp}.tar.gz"
 
 
 def _validate_filename(filename: str) -> None:
