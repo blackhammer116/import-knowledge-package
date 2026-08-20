@@ -24,7 +24,7 @@ _KNOWN_DIMENSIONS = {
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[2]
 
 
 def resolve_memory_dir() -> Path:

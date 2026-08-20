@@ -3,13 +3,13 @@ import tarfile
 
 import pytest
 
-from import_knowledge.memory_portability.archive import unpack
-from import_knowledge.memory_portability.errors import (
+from memory_portability.archive import unpack
+from memory_portability.errors import (
     ArchiveValidationError,
     MemoryImportError,
 )
-from import_knowledge.memory_portability.storage import MemoryStore
-from import_knowledge.memory_portability.transfer import MemoryTransfer
+from memory_portability.storage import MemoryStore
+from memory_portability.transfer import MemoryTransfer
 
 
 PROFILE = {"provider": "Local", "model": "test-model", "vector_dimension": 2}
