@@ -87,6 +87,7 @@ The implementation uses environment variables and can also accept paths directly
 
 - `MEMORY_DIR`: OmegaClaw memory directory containing `history.metta` and import transaction state.
 - `CHROMA_DB_PATH`: ChromaDB persistence directory.
+- `OMEGACLAW_DIR`: OmegaClaw-Core project root used when component paths are not set. Defaults to `/PeTTa/repos/OmegaClaw-Core`.
 - `MEMORY_TRANSFER_DIR`: Directory containing exported and imported archives. Defaults to `/memory-transfer`.
 - `EMBEDDING_PROVIDER`: `Local` or `OpenAI`.
 - `SENTENCE_TRANSFORMERS_MODEL`: Active local embedding model. Defaults to `intfloat/e5-large-v2`.

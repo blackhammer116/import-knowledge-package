@@ -2,6 +2,7 @@ import io
 import json
 import re
 import tarfile
+from pathlib import Path
 
 import pytest
 
@@ -10,13 +11,26 @@ from memory_portability.errors import (
     ArchiveValidationError,
     MemoryImportError,
 )
-from memory_portability.storage import MemoryStore
+from memory_portability.storage import MemoryStore, _project_root
 from memory_portability.transfer import MemoryTransfer
 from memory_portability.records import profiles_compatible
 from memory_portability.validator import load_and_validate
 
 
 PROFILE = {"provider": "Local", "model": "test-model", "vector_dimension": 2}
+
+
+def test_project_root_prefers_omegaclaw_dir(monkeypatch, tmp_path):
+    project_root = tmp_path / "OmegaClaw-Core"
+    monkeypatch.setenv("OMEGACLAW_DIR", str(project_root))
+
+    assert _project_root() == project_root.resolve()
+
+
+def test_project_root_uses_standard_docker_fallback(monkeypatch):
+    monkeypatch.delenv("OMEGACLAW_DIR", raising=False)
+
+    assert _project_root() == Path("/PeTTa/repos/OmegaClaw-Core")
 
 
 def make_store(tmp_path, name, embed_batch=None, store_class=MemoryStore):

@@ -18,6 +18,7 @@ import chromadb
 
 DEFAULT_COLLECTION = "memories"
 DEFAULT_BATCH_SIZE = 500
+DEFAULT_OMEGACLAW_ROOT = Path("/PeTTa/repos/OmegaClaw-Core")
 _KNOWN_DIMENSIONS = {
     "intfloat/e5-large-v2": 1024,
     "text-embedding-3-large": 3072,
@@ -25,7 +26,9 @@ _KNOWN_DIMENSIONS = {
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(
+        os.environ.get("OMEGACLAW_DIR", DEFAULT_OMEGACLAW_ROOT)
+    ).resolve()
 
 
 def resolve_memory_dir() -> Path:
