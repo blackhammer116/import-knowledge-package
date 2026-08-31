@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from .exporter import export_memory
@@ -13,13 +12,11 @@ from .storage import MemoryStore
 class MemoryTransfer:
     def __init__(
         self,
-        transfer_dir: Path | None = None,
-        store: MemoryStore | None = None,
+        transfer_dir: Path,
+        store: MemoryStore,
     ) -> None:
-        self.store = store or MemoryStore()
-        self.transfer_dir = Path(
-            transfer_dir or os.environ.get("MEMORY_TRANSFER_DIR", "/memory-transfer")
-        )
+        self.store = store
+        self.transfer_dir = Path(transfer_dir)
 
     def export(
         self,

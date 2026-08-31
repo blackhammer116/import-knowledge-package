@@ -24,25 +24,6 @@ _KNOWN_DIMENSIONS = {
 }
 
 
-def _project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def resolve_memory_dir() -> Path:
-    return Path(os.environ.get("MEMORY_DIR", _project_root() / "memory")).resolve()
-
-
-def resolve_chroma_path() -> Path:
-    configured = os.environ.get("CHROMA_DB_PATH")
-    if configured:
-        return Path(configured).resolve()
-    container_path = Path("/PeTTa/chroma_db")
-    if container_path.is_dir():
-        return container_path
-    # Matches import_knowledge.py's package-relative local default.
-    return (_project_root() / "chroma_db").resolve()
-
-
 def is_user_record(metadata: object) -> bool:
     """Exclude knowledge priors, hash sentinels, and other operational rows."""
     return isinstance(metadata, dict) and (
@@ -56,14 +37,14 @@ class MemoryStore:
 
     def __init__(
         self,
-        memory_dir: Path | None = None,
-        chroma_path: Path | None = None,
+        memory_dir: Path,
+        chroma_path: Path,
         collection_name: str = DEFAULT_COLLECTION,
         embed_batch: Callable[[list[str]], list[list[float]]] | None = None,
         embedding_profile: dict[str, Any] | None = None,
     ) -> None:
-        self.memory_dir = (memory_dir or resolve_memory_dir()).resolve()
-        self.chroma_path = (chroma_path or resolve_chroma_path()).resolve()
+        self.memory_dir = Path(memory_dir).resolve()
+        self.chroma_path = Path(chroma_path).resolve()
         self.collection_name = collection_name
         self._embed_batch = embed_batch
         self._embedding_profile = embedding_profile

@@ -75,6 +75,34 @@ initLocalEmbedding(model_name="intfloat/e5-large-v2")
 main()
 ```
 
+### Memory portability
+
+The host application owns memory configuration and must pass the resolved paths
+to the package explicitly:
+
+```python
+from pathlib import Path
+
+from memory_portability import MemoryStore, MemoryTransfer
+
+store = MemoryStore(
+    memory_dir=Path("/path/to/omegaclaw/memory"),
+    chroma_path=Path("/path/to/chroma_db"),
+    collection_name="memories",
+)
+transfer = MemoryTransfer(
+    transfer_dir=Path("/path/to/memory-transfer"),
+    store=store,
+)
+
+transfer.export(component="both")
+transfer.import_archive("omegaclaw-memory-<timestamp>.tar.gz")
+transfer.recover()
+```
+
+`MemoryStore` does not infer OmegaClaw paths or read them from environment
+variables. Resolve these values in the host application's configuration layer.
+
 ## Dependencies
 - `openai`: For cloud-based embeddings.
 - `sentence-transformers`: For local, offline embeddings.
