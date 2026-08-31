@@ -77,81 +77,33 @@ initLocalEmbedding(model_name="intfloat/e5-large-v2")
 main()
 ```
 
-## Memory Portability
+### Memory portability
 
-`MemoryTransfer` exports selected user-memory components to one portable archive and imports them using either overwrite or append behavior.
-
-### Configuration
-
-The implementation uses environment variables and can also accept paths directly:
-
-- `MEMORY_DIR`: OmegaClaw memory directory containing `history.metta` and import transaction state.
-- `CHROMA_DB_PATH`: ChromaDB persistence directory.
-- `OMEGACLAW_DIR`: OmegaClaw-Core project root used when component paths are not set. Defaults to `/PeTTa/repos/OmegaClaw-Core`.
-- `MEMORY_TRANSFER_DIR`: Directory containing exported and imported archives. Defaults to `/memory-transfer`.
-- `EMBEDDING_PROVIDER`: `Local` or `OpenAI`.
-- `SENTENCE_TRANSFORMERS_MODEL`: Active local embedding model. Defaults to `intfloat/e5-large-v2`.
-- `OPENAI_EMBEDDING_MODEL`: Active OpenAI embedding model. Defaults to `text-embedding-3-large`.
-- `EMBEDDING_DIMENSION`: Optional vector dimension for a custom embedding model.
-- `OMEGACLAW_VERSION`: Optional source version recorded in the archive manifest.
-
-OpenAI re-embedding also requires `OPENAI_API_KEY`.
-
-### Export
+The host application owns memory configuration and must pass the resolved paths
+to the package explicitly:
 
 ```python
-from memory_portability import MemoryTransfer
+from pathlib import Path
 
-transfer = MemoryTransfer()
+from memory_portability import MemoryStore, MemoryTransfer
 
-# component may be "history", "ltm", or "both".
-result = transfer.export(component="both")
-print(result["filename"])
-```
-
-The export is synchronous. If the host application permits concurrent memory writes, it should hold its memory-write lock while exporting when a cross-component point-in-time snapshot is required.
-
-The archive contains only the selected files:
-
-```text
-manifest.json
-history/history.metta
-vector/collections.json
-vector/records.jsonl
-```
-
-ChromaDB is exported as logical user-memory records rather than raw database files. Knowledge priors and operational records are excluded.
-
-### Import
-
-The filename must be a plain `.tar.gz` filename located inside the configured transfer directory:
-
-```python
-result = transfer.import_archive(
-    "omegaclaw-memory-20260822T120000Z.tar.gz",
-    mode="overwrite",
-    include_history=True,
-    include_vectors=True,
+store = MemoryStore(
+    memory_dir=Path("/path/to/omegaclaw/memory"),
+    chroma_path=Path("/path/to/chroma_db"),
+    collection_name="memories",
 )
+transfer = MemoryTransfer(
+    transfer_dir=Path("/path/to/memory-transfer"),
+    store=store,
+)
+
+transfer.export(component="both")
+transfer.import_archive("omegaclaw-memory-<timestamp>.tar.gz")
+transfer.recover()
 ```
 
-Import modes:
-
-- `overwrite` replaces the selected user-memory components and restores their previous state if the operation fails.
-- `append` keeps existing history and LTM records, appending history and assigning namespaced IDs to imported vectors.
-
-Archives are validated before live memory is modified. Validation covers the manifest, allowed archive members, paths, sizes, checksums, record counts, and embedding dimensions. Missing or incompatible embeddings are regenerated with the active embedding provider.
-
-### Interrupted Import Recovery
-
-Call recovery before starting a new import or before the host agent begins using memory:
-
-```python
-recovery = transfer.recover()
-print(recovery["status"])
-```
-
-Recovery completes an already committed transaction or rolls back an interrupted one. Import receipts prevent the same archive and import selection from being applied more than once.
+`MemoryStore` does not infer OmegaClaw paths or read them from environment
+variables. Resolve these values in the host application's configuration layer.
 
 ## Dependencies
 - `openai`: For cloud-based embeddings.

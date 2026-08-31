@@ -11,8 +11,7 @@ from memory_portability.errors import (
     ArchiveValidationError,
     MemoryImportError,
 )
-from memory_portability.storage import MemoryStore, _project_root
-from memory_portability.transfer import MemoryTransfer
+from memory_portability import MemoryStore, MemoryTransfer
 from memory_portability.records import profiles_compatible
 from memory_portability.validator import load_and_validate
 
