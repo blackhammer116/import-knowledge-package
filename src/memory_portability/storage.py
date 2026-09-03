@@ -211,7 +211,7 @@ class MemoryStore:
         except PackageNotFoundError:
             package_version = "development"
         return {
-            "omegaclaw_version": os.environ.get("OMEGACLAW_VERSION", "unknown"),
+            "omega_version": os.environ.get("OMEGA_VERSION", "unknown"),
             "import_kb_version": package_version,
             "chromadb_version": chromadb.__version__,
         }
