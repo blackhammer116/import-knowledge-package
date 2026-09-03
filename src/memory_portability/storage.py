@@ -1,4 +1,4 @@
-"""OmegaClaw memory storage primitives reused by export and import.
+"""Omega memory storage primitives reused by export and import.
 
 This module intentionally follows the same direct, environment-driven approach
 as ``import_knowledge.py`` and the existing memory extraction script.  It does not copy raw
@@ -18,7 +18,6 @@ import chromadb
 
 DEFAULT_COLLECTION = "memories"
 DEFAULT_BATCH_SIZE = 500
-DEFAULT_OMEGACLAW_ROOT = Path("/PeTTa/repos/OmegaClaw-Core")
 _KNOWN_DIMENSIONS = {
     "intfloat/e5-large-v2": 1024,
     "text-embedding-3-large": 3072,
@@ -34,7 +33,7 @@ def is_user_record(metadata: object) -> bool:
 
 
 class MemoryStore:
-    """Read and mutate OmegaClaw's persistent user-memory components."""
+    """Read and mutate Omega's persistent user-memory components."""
 
     def __init__(
         self,
