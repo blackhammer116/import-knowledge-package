@@ -11,7 +11,7 @@ from typing import Any
 from .archive import FORMAT_VERSION, MANIFEST_NAME, expected_members
 from .errors import ArchiveValidationError
 
-FORMAT_NAME = "omegaclaw-user-memory"
+FORMAT_NAME = "omega-user-memory"
 
 
 def sha256_file(path: Path) -> str:

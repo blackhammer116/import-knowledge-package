@@ -1,11 +1,11 @@
 # Import Knowledge and Memory Portability (`import-kb`)
 
-A utility package for importing distilled knowledge into a ChromaDB-based Long-Term Memory (LTM) system and backing up or restoring OmegaClaw user memory.
+A utility package for importing distilled knowledge into a ChromaDB-based Long-Term Memory (LTM) system and backing up or restoring Omega user memory.
 
 ## Purpose
 The `import-kb` package is designed to bridge the gap between static knowledge files (JSONL, MeTTa) and an active agent's memory. It processes structured knowledge, generates vector embeddings, and upserts them into a ChromaDB collection, enabling semantic search and retrieval for AI agents.
 
-The package also provides `memory_portability`, a programmatic interface for exporting and restoring OmegaClaw conversation history and user LTM records. OmegaClaw Core remains responsible for its CLI, container lifecycle, transfer-directory mount, and user-facing decisions.
+The package also provides `memory_portability`, a programmatic interface for exporting and restoring Omega conversation history and user LTM records. Omega Core remains responsible for its CLI, container lifecycle, transfer-directory mount, and user-facing decisions.
 
 ## Supported Embedding Models
 This package supports two primary embedding modes:
@@ -88,7 +88,7 @@ from pathlib import Path
 from memory_portability import MemoryStore, MemoryTransfer
 
 store = MemoryStore(
-    memory_dir=Path("/path/to/omegaclaw/memory"),
+    memory_dir=Path("/path/to/omega/memory"),
     chroma_path=Path("/path/to/chroma_db"),
     collection_name="memories",
 )
@@ -98,11 +98,11 @@ transfer = MemoryTransfer(
 )
 
 transfer.export(component="both")
-transfer.import_archive("omegaclaw-memory-<timestamp>.tar.gz")
+transfer.import_archive("omega-memory-<timestamp>.tar.gz")
 transfer.recover()
 ```
 
-`MemoryStore` does not infer OmegaClaw paths or read them from environment
+`MemoryStore` does not infer Omega paths or read them from environment
 variables. Resolve these values in the host application's configuration layer.
 
 ## Dependencies
