@@ -18,6 +18,7 @@ import chromadb
 
 DEFAULT_COLLECTION = "memories"
 DEFAULT_BATCH_SIZE = 500
+DEFAULT_OMEGA_ROOT = Path("/PeTTa/repos/Omega")
 _KNOWN_DIMENSIONS = {
     "intfloat/e5-large-v2": 1024,
     "text-embedding-3-large": 3072,
