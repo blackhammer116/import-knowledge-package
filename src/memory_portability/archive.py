@@ -100,6 +100,8 @@ def unpack(archive_path: Path, destination: Path) -> set[str]:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with source, target.open("wb") as output:
                     shutil.copyfileobj(source, output)
+                # skills are copied to the store as files, so keep their exec bits
+                target.chmod(member.mode & 0o755 | 0o600)
     except (tarfile.TarError, OSError) as exc:
         if isinstance(exc, ArchiveValidationError):
             raise
