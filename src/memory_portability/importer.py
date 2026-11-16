@@ -64,6 +64,9 @@ def import_archive(
         if receipt.exists():
             return {"status": "already-imported", "receipt": receipt.name}
 
+        if do_skills:
+            store.validate_skills_destination(staging, replace=mode == "overwrite")
+
         reembedded = False
         if do_vectors:
             source_profile = source_embedding_profile(staging)

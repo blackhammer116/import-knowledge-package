@@ -48,8 +48,8 @@ class MemoryStore:
     ) -> None:
         self.memory_dir = Path(memory_dir).resolve()
         self.chroma_path = Path(chroma_path).resolve()
-        self.skills_dir = Path(skills_dir).resolve() if skills_dir else None
-        self.space_dir = Path(space_dir).resolve() if space_dir else None
+        self.skills_dir = Path(skills_dir).absolute() if skills_dir else None
+        self.space_dir = Path(space_dir).absolute() if space_dir else None
         self.collection_name = collection_name
         self._embed_batch = embed_batch
         self._embedding_profile = embedding_profile
@@ -231,12 +231,26 @@ class MemoryStore:
                 shutil.copytree(path, destination / name, symlinks=True)
 
     def load_skills(self, source: Path, replace: bool) -> None:
+        self.validate_skills_destination(source, replace)
         for name, path in self.skills_dirs().items():
             if replace and path.exists():
                 shutil.rmtree(path)
             path.mkdir(parents=True, exist_ok=True)
             if (source / name).is_dir():
                 shutil.copytree(source / name, path, symlinks=True, dirs_exist_ok=True)
+
+    def validate_skills_destination(self, source: Path, replace: bool) -> None:
+        for name, root in self.skills_dirs().items():
+            for path in (*reversed(root.parents), root):
+                if path.is_symlink():
+                    raise ValueError(f"Skills destination must not be a symlink: {path}")
+            if not replace and (source / name).is_dir():
+                for incoming in (source / name).rglob("*"):
+                    path = root / incoming.relative_to(source / name)
+                    if path.is_symlink():
+                        raise ValueError(
+                            f"Skills destination must not be a symlink: {path}"
+                        )
 
     def smoke_test(self, history: bool, vectors: bool, skills: bool = False) -> None:
         if history:

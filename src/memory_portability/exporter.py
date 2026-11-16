@@ -36,6 +36,8 @@ def export_memory(
     if component not in COMPONENTS:
         raise ValueError(f"component must be one of {sorted(COMPONENTS)}")
     components = COMPONENTS[component]
+    if "skills" in components:
+        store.skills_dirs()
     transfer_dir = transfer_dir.resolve()
     transfer_dir.mkdir(parents=True, exist_ok=True)
     if not transfer_dir.is_dir():
