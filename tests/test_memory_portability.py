@@ -26,6 +26,8 @@ def make_store(tmp_path, name, embed_batch=None, store_class=MemoryStore):
         chroma_path=tmp_path / name / "chroma",
         embed_batch=embed_batch,
         embedding_profile=PROFILE,
+        skills_dir=tmp_path / name / "memory" / "workflow" / "skills",
+        space_dir=tmp_path / name / "memory" / "workflow" / "space",
     )
 
 
@@ -48,7 +50,7 @@ def test_round_trip_restores_user_memory_and_preserves_knowledge(tmp_path):
     source.upsert_records([record("source-memory", "remember me")])
 
     transfer = MemoryTransfer(tmp_path / "transfer", source)
-    exported = transfer.export("both", filename="memory.tar.gz")
+    exported = transfer.export("all", filename="memory.tar.gz")
 
     with tarfile.open(tmp_path / "transfer" / exported["filename"], "r:gz") as archive:
         assert set(archive.getnames()) == {
@@ -136,7 +138,7 @@ def test_append_namespaces_ids_and_preserves_existing_records(tmp_path):
     source.write_history("imported history\n")
     source.upsert_records([record("shared-id", "imported")])
     transfer_dir = tmp_path / "transfer"
-    MemoryTransfer(transfer_dir, source).export("both", filename="append.tar.gz")
+    MemoryTransfer(transfer_dir, source).export("all", filename="append.tar.gz")
 
     target = make_store(tmp_path, "target")
     target.write_history("existing history\n")
@@ -165,21 +167,21 @@ def test_unpack_rejects_unsafe_member(tmp_path):
 class FailOnceStore(MemoryStore):
     fail_next_smoke_test = True
 
-    def smoke_test(self, history, vectors):
+    def smoke_test(self, history, vectors, skills=False):
         if self.fail_next_smoke_test:
             self.fail_next_smoke_test = False
             raise RuntimeError("simulated post-import failure")
-        super().smoke_test(history, vectors)
+        super().smoke_test(history, vectors, skills)
 
 
 class CrashOnceStore(MemoryStore):
     crash_next_smoke_test = True
 
-    def smoke_test(self, history, vectors):
+    def smoke_test(self, history, vectors, skills=False):
         if self.crash_next_smoke_test:
             self.crash_next_smoke_test = False
             raise KeyboardInterrupt("simulated process interruption")
-        super().smoke_test(history, vectors)
+        super().smoke_test(history, vectors, skills)
 
 
 def test_failed_overwrite_restores_previous_memory(tmp_path):
@@ -187,7 +189,7 @@ def test_failed_overwrite_restores_previous_memory(tmp_path):
     source.write_history("source history\n")
     source.upsert_records([record("source-memory", "source")])
     transfer_dir = tmp_path / "transfer"
-    MemoryTransfer(transfer_dir, source).export("both", filename="rollback.tar.gz")
+    MemoryTransfer(transfer_dir, source).export("all", filename="rollback.tar.gz")
 
     target = make_store(tmp_path, "target", store_class=FailOnceStore)
     target.write_history("target history\n")
@@ -200,12 +202,31 @@ def test_failed_overwrite_restores_previous_memory(tmp_path):
     assert [item["id"] for item in user_records(target)] == ["target-memory"]
 
 
+def test_failed_overwrite_restores_previous_skills(tmp_path):
+    source = make_store(tmp_path, "source")
+    (source.skills_dir / "new-skill").mkdir(parents=True)
+    (source.skills_dir / "new-skill" / "SKILL.md").write_text("new", encoding="utf-8")
+    transfer_dir = tmp_path / "transfer"
+    MemoryTransfer(transfer_dir, source).export("skills", filename="skills.tar.gz")
+
+    target = make_store(tmp_path, "target", store_class=FailOnceStore)
+    (target.space_dir / "research").mkdir(parents=True)
+    (target.space_dir / "research" / "notes.md").write_text("notes", encoding="utf-8")
+    (target.skills_dir / "old-skill").mkdir(parents=True)
+
+    with pytest.raises(MemoryImportError, match="rolled back"):
+        MemoryTransfer(transfer_dir, target).import_archive("skills.tar.gz")
+
+    assert [path.name for path in target.skills_dir.iterdir()] == ["old-skill"]
+    assert (target.space_dir / "research" / "notes.md").read_text(encoding="utf-8") == "notes"
+
+
 def test_failed_overwrite_removes_vector_store_created_for_fresh_memory(tmp_path):
     source = make_store(tmp_path, "source")
     source.write_history("source history\n")
     source.upsert_records([record("source-memory", "source")])
     transfer_dir = tmp_path / "transfer"
-    MemoryTransfer(transfer_dir, source).export("both", filename="fresh.tar.gz")
+    MemoryTransfer(transfer_dir, source).export("all", filename="fresh.tar.gz")
 
     target = make_store(tmp_path, "fresh-target", store_class=FailOnceStore)
     assert target.history_path.exists() is False
@@ -250,7 +271,7 @@ def test_recover_rolls_back_an_interrupted_overwrite(tmp_path):
     source.write_history("source history\n")
     source.upsert_records([record("source-memory", "source")])
     transfer_dir = tmp_path / "transfer"
-    MemoryTransfer(transfer_dir, source).export("both", filename="recovery.tar.gz")
+    MemoryTransfer(transfer_dir, source).export("all", filename="recovery.tar.gz")
 
     target = make_store(tmp_path, "target", store_class=CrashOnceStore)
     target.write_history("target history\n")
@@ -263,3 +284,189 @@ def test_recover_rolls_back_an_interrupted_overwrite(tmp_path):
     assert transfer.recover() == {"status": "rolled-back"}
     assert target.read_history() == "target history\n"
     assert [item["id"] for item in user_records(target)] == ["target-memory"]
+
+
+@pytest.mark.parametrize("component", [None, "all", "skills"])
+@pytest.mark.parametrize("configured", [None, "skills_dir", "space_dir"])
+def test_export_requires_workflow_paths_before_side_effects(
+    tmp_path, monkeypatch, component, configured
+):
+    paths = {configured: tmp_path / configured} if configured else {}
+    store = MemoryStore(tmp_path / "memory", tmp_path / "chroma", **paths)
+
+    def unexpected_read(*args, **kwargs):
+        pytest.fail("Export read memory before validating workflow configuration")
+
+    monkeypatch.setattr(store, "read_history", unexpected_read)
+    monkeypatch.setattr(store, "iter_user_records", unexpected_read)
+    transfer = MemoryTransfer(tmp_path / "transfer", store)
+    with pytest.raises(ValueError, match="skills_dir and space_dir are required"):
+        if component is None:
+            transfer.export()
+        else:
+            transfer.export(component)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("component", ["history", "ltm"])
+def test_history_and_ltm_work_without_workflow_paths(tmp_path, component):
+    source = MemoryStore(
+        tmp_path / "source", tmp_path / "source-chroma", embedding_profile=PROFILE
+    )
+    source.write_history("history\n")
+    source.upsert_records([record("memory", "remember me")])
+    transfer_dir = tmp_path / "transfer"
+    exported = MemoryTransfer(transfer_dir, source).export(component)
+    target = MemoryStore(
+        tmp_path / "target", tmp_path / "target-chroma", embedding_profile=PROFILE
+    )
+    result = MemoryTransfer(transfer_dir, target).import_archive(exported["filename"])
+    assert result["status"] == "imported"
+    if component == "history":
+        assert target.read_history() == "history\n"
+    else:
+        assert [item["id"] for item in user_records(target)] == ["memory"]
+
+
+@pytest.fixture
+def workflow_archive(tmp_path):
+    source = make_store(tmp_path, "source")
+    source.write_history("imported history\n")
+    for root in source.skills_dirs().values():
+        (root / "nested").mkdir(parents=True)
+        (root / "config.txt").write_text("imported file", encoding="utf-8")
+        (root / "nested" / "config.txt").write_text("imported nested", encoding="utf-8")
+    transfer_dir = tmp_path / "transfer"
+    MemoryTransfer(transfer_dir, source).export(filename="workflow.tar.gz")
+    return transfer_dir
+
+
+def destination_link(tmp_path, store, directory, kind):
+    root = store.skills_dirs()[directory]
+    root.mkdir(parents=True, exist_ok=True)
+    external = tmp_path / "external"
+    external.mkdir()
+    protected = external / "config.txt"
+    if kind != "dangling":
+        protected.write_text("external original", encoding="utf-8")
+    link = root / ("nested" if kind == "directory" else "config.txt")
+    link.symlink_to(external if kind == "directory" else protected)
+    return link, protected
+
+
+@pytest.mark.parametrize("directory", ["skills", "space"])
+@pytest.mark.parametrize("kind", ["file", "directory", "dangling"])
+def test_append_rejects_destination_links_before_mutating_memory(
+    tmp_path, workflow_archive, directory, kind
+):
+    target = make_store(tmp_path, "target")
+    target.write_history("original history\n")
+    link, protected = destination_link(tmp_path, target, directory, kind)
+
+    with pytest.raises(ValueError, match="destination must not be a symlink"):
+        MemoryTransfer(workflow_archive, target).import_archive(
+            "workflow.tar.gz", mode="append"
+        )
+
+    assert target.read_history() == "original history\n"
+    assert link.is_symlink()
+    assert not target.chroma_path.exists()
+    assert not (target.memory_dir / ".memory-import-in-progress.json").exists()
+    assert not (target.memory_dir / ".memory-import-rollback").exists()
+    assert not (target.memory_dir / ".memory-import-receipts").exists()
+    for root in target.skills_dirs().values():
+        assert not root.exists() or list(root.iterdir()) == [link]
+    if kind == "dangling":
+        assert not protected.exists()
+    else:
+        assert protected.read_text(encoding="utf-8") == "external original"
+
+
+@pytest.mark.parametrize("directory", ["skills", "space"])
+@pytest.mark.parametrize("kind", ["file", "directory", "dangling"])
+@pytest.mark.parametrize("fail", [False, True])
+def test_overwrite_and_rollback_do_not_follow_nested_destination_links(
+    tmp_path, workflow_archive, directory, kind, fail
+):
+    target = make_store(
+        tmp_path, "target", store_class=FailOnceStore if fail else MemoryStore
+    )
+    link, protected = destination_link(tmp_path, target, directory, kind)
+    original_link = link.readlink()
+    transfer = MemoryTransfer(workflow_archive, target)
+    if fail:
+        with pytest.raises(MemoryImportError, match="rolled back"):
+            transfer.import_archive("workflow.tar.gz")
+        assert link.is_symlink()
+        assert link.readlink() == original_link
+    else:
+        assert transfer.import_archive("workflow.tar.gz")["status"] == "imported"
+        assert not link.is_symlink()
+        imported = link / "config.txt" if kind == "directory" else link
+        assert imported.read_text(encoding="utf-8").startswith("imported")
+    if kind == "dangling":
+        assert not protected.exists()
+    else:
+        assert protected.read_text(encoding="utf-8") == "external original"
+
+
+@pytest.mark.parametrize("directory", ["skills", "space"])
+@pytest.mark.parametrize("kind", ["file", "directory", "dangling"])
+@pytest.mark.parametrize("fail", [False, True])
+def test_append_and_rollback_preserve_unrelated_destination_links(
+    tmp_path, workflow_archive, directory, kind, fail
+):
+    target = make_store(
+        tmp_path, "target", store_class=FailOnceStore if fail else MemoryStore
+    )
+    link, protected = destination_link(tmp_path, target, directory, kind)
+    unrelated = link.with_name("unrelated")
+    link.rename(unrelated)
+    original_link = unrelated.readlink()
+    transfer = MemoryTransfer(workflow_archive, target)
+    if fail:
+        with pytest.raises(MemoryImportError, match="rolled back"):
+            transfer.import_archive("workflow.tar.gz", mode="append")
+        assert not link.exists()
+    else:
+        assert transfer.import_archive("workflow.tar.gz", mode="append")["status"] == "imported"
+        assert link.exists()
+    assert unrelated.is_symlink()
+    assert unrelated.readlink() == original_link
+    if kind == "dangling":
+        assert not protected.exists()
+    else:
+        assert protected.read_text(encoding="utf-8") == "external original"
+
+
+@pytest.mark.parametrize("directory", ["skills", "space"])
+@pytest.mark.parametrize("location", ["root", "parent"])
+@pytest.mark.parametrize("replace", [False, True])
+def test_load_skills_rejects_linked_roots_and_parents(
+    tmp_path, directory, location, replace
+):
+    external = tmp_path / "external"
+    external.mkdir()
+    protected = external / "config.txt"
+    protected.write_text("external original", encoding="utf-8")
+    link = tmp_path / "linked"
+    link.symlink_to(external, target_is_directory=True)
+    destination = link if location == "root" else link / "child"
+    paths = {
+        "skills_dir": tmp_path / "skills",
+        "space_dir": tmp_path / "space",
+        f"{directory}_dir": destination,
+    }
+    store = MemoryStore(tmp_path / "memory", tmp_path / "chroma", **paths)
+    source = tmp_path / "incoming"
+    for name in ["skills", "space"]:
+        (source / name).mkdir(parents=True)
+        (source / name / "config.txt").write_text("imported", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="destination must not be a symlink"):
+        store.load_skills(source, replace=replace)
+
+    assert protected.read_text(encoding="utf-8") == "external original"
+    assert list(external.iterdir()) == [protected]
+    assert not (tmp_path / "skills").exists()
+    assert not (tmp_path / "space").exists()

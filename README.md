@@ -104,19 +104,35 @@ store = MemoryStore(
     memory_dir=Path("/path/to/omega/memory"),
     chroma_path=Path("/path/to/chroma_db"),
     collection_name="memories",
+    skills_dir=Path("/path/to/omega/memory/workflow/custom-skills"),
+    space_dir=Path("/path/to/omega/memory/workflow/space"),
 )
 transfer = MemoryTransfer(
     transfer_dir=Path("/path/to/memory-transfer"),
     store=store,
 )
 
-exported = transfer.export(component="both")
+exported = transfer.export(component="all")
 transfer.import_archive(exported["filename"])
 transfer.recover()
 ```
 
 `MemoryStore` does not infer Omega paths or read them from environment
 variables. Resolve these values in the host application's configuration layer.
+
+The default export component is now `"all"` (history, LTM, and skills), replacing
+the previous `"both"` option. Both `skills_dir` and `space_dir` must be configured
+for `export()`, `export("all")`, or `export("skills")`; missing configuration raises
+`ValueError` before any export directories are created or memory is read.
+These paths remain optional for history-only and LTM-only operations: use
+`export("history")` or `export("ltm")`. To migrate an application that previously
+exported both history and LTM, configure both workflow paths and use `"all"`, or
+export history and LTM separately if workflow storage is not available.
+
+Skills imports reject symlinks in either destination root or its parents.
+Append also rejects symlinks at incoming file and directory paths before
+changing memory. Overwrite safely removes existing trees, including nested
+symlinks, and rollback preserves those links without writing to their targets.
 
 Default exports use `omega-memory-<UTC timestamp>-<ID>.tar.gz`, where the
 ID is the first eight hexadecimal characters of a UUIDv4.
